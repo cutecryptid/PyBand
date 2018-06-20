@@ -1,0 +1,83 @@
+Walking = 1,
+Running = 98,
+Charging = 6,
+SlowWalking = 16,
+1 min before and 1 min after walking = 17
+WakeUp = 28,
+WakeUp? = 89,
+StairClimbing = 33,
+Sitting = 80, (no step)
+NotWornFaceUp = 83,
+SedentaryInLast5Minutes = 90
+Standing = 96,
+SleepInterruption = 105,
+Sleeping = 112, (sleep, raw_intensity = 0)
+NotWornFaceDown = 115,
+SleepUnknown1 = 121,
+SleepUnknown2 = 122, (sleep, raw_intensity =<20)
+SleepStart = 123,
+SleepUnknown3 = 124,
+
+The device only has the category 'sleeping', there is no light/deep sleep
+Deep sleep is characterized by prolonged periods of 0 intensity.
+It seems that after +/- 10 minutes of 0 intensity deep sleep kicks in and you
+go back to light sleep if intensity goes up again to > 15.
+After some sleep (112) states a SleepStart (123) is usually present but not always.
+Sleep is ended by WakeUp (28) but not always....
+
+112 with intensity =0 means not worn.
+112 with intensity >0 means light sleep.
+
+Walking
+1
+16
+17
+26 -> rare
+
+Running
+50 -> rare
+66 - > rare
+82 -> start/end
+98
+
+Sleeping
+28 -> wake up
+89
+105 -> wake up (sleep interrupt)
+106 -> fall asleep
+112 -> sleep, raw_intensity =0
+121
+122 -> sleep, raw_intensity =<20
+123 -> fall asleep
+
+Inmobile/Sitting
+80
+90
+96
+91 -> rare
+99 -> rare
+
+So when you are inactive, you are given the value "81".
+If the value "81" is with a raw intensity of <3 for ten times, this triggers 91. -> You fell asleep.
+-> Those 10x 81 are then interpreted as Light sleep
+(as those values cant be changed anymore, but mean that you were sleeping at that point)
+-> So a 91 basically means: You had light sleep the 10 minutes before.
+
+From this point on everything is recorded as 112. Now we are in a deep sleep phase.
+Why? Because from here I had only 112s with raw intensity of 0!
+I figured out the threshold: If you have 8 times (or 8 minutes) 112s with 0 intensity,
+you are now in deep sleep. (we start counting deepslep from the 8th 112 with 0 intensity)
+
+So when do I switch back to light sleep? Easy! We have a 112 with increased intensity!
+For me the lowest value was intensity 6 to wake up. So lets asume intensity >5 112
+means you switched from deep, to light sleep.
+
+
+type 81: "inactive"
+type 91: "inactive for too long, Roxxor91 started sleeping 10 minutes ago"
+type 112: "sleeping"
+type 112 with intensity "0" for 8 minutes: "deep sleep begins (now)"
+type 112 with intensity >5: "deep sleep ended"
+type 28: "out of bed"
+
+Let's say: type 28 and 105: "woke up"

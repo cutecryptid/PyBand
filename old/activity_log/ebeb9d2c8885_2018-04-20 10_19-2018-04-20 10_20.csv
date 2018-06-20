@@ -1,0 +1,3 @@
+device_mac, date, type, intensity, steps, heartrate
+eb:eb:9d:2c:88:85, 2018-04-20 10:19, 112, 13, 0, 255
+eb:eb:9d:2c:88:85, 2018-04-20 10:20, 112, 14, 0, 255

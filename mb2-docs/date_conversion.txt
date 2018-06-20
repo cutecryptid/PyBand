@@ -1,0 +1,10 @@
+Retrieve actual datetime and convert to bytes
+
+
+
+n = datetime.datetime.now()
+if minutes
+  dateBytes = struct.pack('<H4B', n.year, n.month, n.day, n.hour, n.minute)
+if seconds
+  dateBytes = struct.pack('<H4B', n.year, n.month, n.day, n.hour, n.minute, n.second, n.weekday())
+tail = struct.pack('2B', 0, 0)

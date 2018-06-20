@@ -1,0 +1,25 @@
+>>> mb2.waitForNotifications(1.0)
+HANDLE: 0x44
+DATA: 0c603a00ff502b00ff502800ff501e0046
+Activity Data: 0c603a00ff502b00ff502800ff501e0046
+True
+>>> mb2.waitForNotifications(1.0)
+HANDLE: 0x44
+DATA: 0d500800ff502000ff501b00ff502600ff
+Activity Data: 0d500800ff502000ff501b00ff502600ff
+True
+>>> mb2.waitForNotifications(1.0)
+HANDLE: 0x44
+DATA: 0e5007003f502800ff502300ff504f00ff
+Activity Data: 0e5007003f502800ff502300ff504f00ff
+True
+>>> mb2.waitForNotifications(1.0)
+HANDLE: 0x44
+DATA: 0f501800ff5029003d503000ff501b00ff
+Activity Data: 0f501800ff5029003d503000ff501b00ff
+True
+>>> mb2.waitForNotifications(1.0)
+HANDLE: 0x44
+DATA: 10502400ff502600ff502a0041602800ff
+Activity Data: 10502400ff502600ff502a0041602800ff
+True
