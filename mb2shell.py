@@ -1,8 +1,5 @@
 #!/usr/bin/env python
 
-base_route = "/home/miband2server/scripts"
-config_route = base_route + "/configuration"
-
 import cmd
 import pyodbc
 import json
@@ -16,6 +13,10 @@ import struct
 import datetime
 import Queue
 import ConfigParser
+import argparse
+import os
+base_route = os.path.dirname(os.path.realpath(__file__))
+config_route = base_route + "/configuration"
 sys.path.append(base_route + '/lib')
 from miband2 import MiBand2, MiBand2Alarm
 import miband2db as mb2db
@@ -73,7 +74,10 @@ def do_fetch_activity(item):
             print("There was a problem connecting this MiBand2, try again later")
             print e
     try:
-        last_sync = mb2db.get_device_last_sync(mb2db.cnxn, item)
+        if args.mode == "db":
+            last_sync = mb2db.get_device_last_sync(mb2db.cnxn, item)
+        else:
+            last_sync
         if last_sync != None:
             connected_devices[item].setLastSyncDate(last_sync)
         connected_devices[item].send_alert(b'\x03')
@@ -559,7 +563,18 @@ class MiBand2CMD(cmd.Cmd):
         return self.exit_safely()
 
 if __name__ == '__main__':
-    if mb2db.cnxn:
-        MiBand2CMD().cmdloop()
-    else:
-        print "Couldn't connect to DB, please check configuration and try again"
+    parser = argparse.ArgumentParser(description='MB2 Command Shell')
+    parser.add_argument('-m', '--mode', default="json", choices=("json", "db")
+                    help='Storage mode')
+
+    args = parser.parse_args()
+    print(args.accumulate(args.integers))
+
+    if args.mode == "db":
+        if mb2db.cnxn:
+            MiBand2CMD().cmdloop()
+        else:
+            print "Couldn't connect to DB, please check configuration and try again"
+    elif args.mode == "json":
+        registered_devices = json.load(open(base_route + 'json/storage/registered_devices.json'))
+        devices_last_sync = json.load(open(base_route + 'storage/devices_last_sync.json'))
