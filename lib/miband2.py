@@ -622,6 +622,11 @@ class MiBand2(Peripheral):
             self.char_config.write(b'\x06\x06\x00\x00')
         self.waitForNotifications(self.timeout)
 
+    def displayReset(self):
+        print("Resetting Device's Display...")
+        self.char_config.write(b'\x06\x0b\x00\x01')
+        self.waitForNotifications(self.timeout)
+
     def reboot(self):
         self.char_firmware.write(b'\x05')
         self.waitForNotifications(self.timeout)

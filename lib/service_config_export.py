@@ -1,9 +1,13 @@
+# This script extracts the services and characteristics from a MiBand2 and stores
+# them on a local file so they can be loaded from a file and save time
+# This file is provided in the repo, but you might want to update it
+
 from miband2 import MiBand2
 import json
 
-ADDR = "fc:5a:18:28:15:53"
+ADDR = "00:11:22:33:44:55"
 
-mb2 = MiBand2(ADDR)
+mb2 = MiBand2(ADDR, initialize=true)
 
 svc_export = {}
 

@@ -1,0 +1,4 @@
+*.pyc
+**/*.pyc
+localdata/*.json
+localdata/activity_log/*.csv
