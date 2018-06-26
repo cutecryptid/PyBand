@@ -15,6 +15,8 @@ import Queue
 import ConfigParser
 import argparse
 import os
+import string
+import random
 base_route = os.path.dirname(os.path.realpath(__file__))
 config_route = base_route + "/configuration"
 sys.path.append(base_route + '/lib')
@@ -67,6 +69,8 @@ def save_local(cmd):
         json.dump(cmd.devices_last_sync, outfile)
     with open(base_route + '/localdata/devices_alarms.json', 'wb') as outfile:
         json.dump(cmd.devices_alarms, outfile)
+    with open(base_route + '/localdata/devices_keys.json', 'wb') as outfile:
+        json.dump(cmd.devices_keys, outfile)
 
 def scan_miband2(scanner,):
     print("Scanning!")
@@ -78,17 +82,22 @@ def scan_miband2(scanner,):
     print("Stopped scanning...")
     scanner.stop()
 
-def worker():
+def random_key(length=16):
+    return ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(length))
+
+def worker(cmd):
     while True:
         item = q.get()
-        do_fetch_activity(item)
+        do_fetch_activity(item, cmd)
         q.task_done()
 
-def do_fetch_activity(item):
+def do_fetch_activity(item, cmd):
     print "Fetching MiBand2 [%s] activity!" % item
     if item not in connected_devices.keys():
         try:
-            mb2 = MiBand2(item, initialize=False)
+            if not item in self.devices_keys.keys():
+                self.devices_keys[item] = random_key()
+            mb2 = MiBand2(addr, self.devices_keys[item], initialize=False)
             connected_devices[item] = mb2
         except BTLEException as e:
             print("There was a problem connecting this MiBand2, try again later")
@@ -97,7 +106,9 @@ def do_fetch_activity(item):
         if args.mode == "db":
             last_sync = mb2db.get_device_last_sync(mb2db.cnxn, item)
         else:
-            last_sync = self.devices_last_sync.get(item, default = None)
+            last_sync = None
+            if item in cmd.devices_last_sync.keys():
+                last_sync = cmd.devices_last_sync[item]
         if last_sync != None:
             connected_devices[item].setLastSyncDate(last_sync)
         connected_devices[item].send_alert(b'\x03')
@@ -108,7 +119,7 @@ def do_fetch_activity(item):
             if args.mode == "db":
                 mb2db.write_activity_data(mb2db.cnxn, connected_devices[item])
             else:
-                connected_devices[item].store_activity_data_file(base_route + 'localdata/activity_log/')
+                connected_devices[item].store_activity_data_file(base_route + '/localdata/activity_log/')
         print "Finished fetching MiBand2 [%s] activity!" % item
     except BTLEException as e:
         print("There was a problem retrieving this MiBand2's activity, try again later")
@@ -128,7 +139,7 @@ class MiBand2CMD(cmd.Cmd):
         self.scan_thread.start()
 
         for i in range(max_connections):
-             t = threading.Thread(target=worker)
+             t = threading.Thread(target=worker, args=(self,))
              t.daemon = True
              t.start()
 
@@ -412,7 +423,10 @@ class MiBand2CMD(cmd.Cmd):
                     print("That MiBand2 is already connected")
                 else:
                     try:
-                        mb2 = MiBand2(self.mibands.keys()[dev_id], initialize=False)
+                        addr = self.mibands.keys()[dev_id]
+                        if not addr in self.devices_keys.keys():
+                            self.devices_keys[addr] = random_key()
+                        mb2 = MiBand2(addr, self.devices_keys[addr], initialize=False)
                         connected_devices[self.mibands.keys()[dev_id]] = mb2
                         if args.mode == "db":
                             alarms = mb2db.get_device_alarms(mb2db.cnxn, mb2.addr)
@@ -475,7 +489,10 @@ class MiBand2CMD(cmd.Cmd):
         else:
             mb2 = None
             try:
-                mb2 = MiBand2(self.mibands.keys()[dev_id], initialize=True)
+                addr = self.mibands.keys()[dev_id]
+                if not addr in self.devices_keys.keys():
+                    self.devices_keys[addr] = random_key()
+                mb2 = MiBand2(addr, self.devices_keys[addr], initialize=False)
                 mb2.cleanAlarms()
                 if args.mode == "db":
                     mb2db.delete_all_alarms(mb2db.cnxn, mb2.addr)
@@ -697,4 +714,5 @@ if __name__ == '__main__':
         mb2cmd.registered_devices = read_json(base_route + '/localdata/registered_devices.json', default="[]")
         mb2cmd.devices_last_sync = read_json(base_route + '/localdata/devices_last_sync.json')
         mb2cmd.devices_alarms = read_json(base_route + '/localdata/devices_alarms.json')
+        mb2cmd.devices_keys = read_json(base_route + '/localdata/devices_keys.json')
         mb2cmd.cmdloop()

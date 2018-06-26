@@ -72,17 +72,18 @@ class MiBand2Alarm:
         return repr
 
 class MiBand2(Peripheral):
-    _KEY = b'\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39\x40\x41\x42\x43\x44\x45'
-    _send_key_cmd = struct.pack('<18s', b'\x01\x08' + _KEY)
     _send_rnd_cmd = struct.pack('<2s', b'\x02\x08')
     _send_enc_key = struct.pack('<2s', b'\x03\x08')
     _fetch_cmd = struct.pack('<1s', b'\x02')
     _activity_data_start_cmd = struct.pack('<1s', b'\x01')
     _activity_data_type_activity_cmd = struct.pack('<1s', b'\x01')
 
-    def __init__(self, addr, sleepOffset=0, initialize=False):
+    def __init__(self, addr, key, sleepOffset=0, initialize=False):
         Peripheral.__init__(self, addr, addrType=ADDR_TYPE_RANDOM)
         print("Connected")
+
+        self._KEY = key
+        self._send_key_cmd = struct.pack('<18s', b'\x01\x08' + str(self._KEY))
 
         self.timeout = 2
         self.state = None
@@ -622,7 +623,7 @@ class MiBand2(Peripheral):
             self.char_config.write(b'\x06\x06\x00\x00')
         self.waitForNotifications(self.timeout)
 
-    def factoryReset(self, force=false):
+    def factoryReset(self, force=False):
         if not force:
             print ("Factory resetting will wipe everything and change the device's MAC, use 'force' parameter if you know what you are doing")
         else:
