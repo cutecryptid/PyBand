@@ -622,10 +622,14 @@ class MiBand2(Peripheral):
             self.char_config.write(b'\x06\x06\x00\x00')
         self.waitForNotifications(self.timeout)
 
-    def displayReset(self):
-        print("Resetting Device's Display...")
-        self.char_config.write(b'\x06\x0b\x00\x01')
-        self.waitForNotifications(self.timeout)
+    def factoryReset(self, force=false):
+        if not force:
+            print ("Factory resetting will wipe everything and change the device's MAC, use 'force' parameter if you know what you are doing")
+        else:
+            print("Resetting Device...")
+            self.char_config.write(b'\x06\x0b\x00\x01')
+            self.waitForNotifications(self.timeout)
+            self.disconnect()
 
     def reboot(self):
         self.char_firmware.write(b'\x05')
