@@ -36,16 +36,17 @@ config = ConfigParser.ConfigParser()
 config.readfp(open(config_route + '/mb2_presets.conf'))
 
 class MiBand2ScanDelegate(DefaultDelegate):
-    def __init__(self):
+    def __init__(self, thresh):
         DefaultDelegate.__init__(self)
         self.tmp_devices = {}
+        self.thresh = thresh
 
     def handleDiscovery(self, dev, isNewDev, isNewData):
         try:
             name = dev.getValueText(9)
             serv = dev.getValueText(2)
-            if name == 'MI Band 2' and serv == 'e0fe' and dev.addr:
-                self.tmp_devices[dev.addr] = dev
+            if name == 'MI Band 2' and serv == 'e0fe' and dev.addr and dev.rssi >= self.thresh:
+                self.tmp_devices[dev.addr] = {"device": dev, "strikes": 0}
         except:
             print "ERROR"
 
@@ -72,13 +73,23 @@ def save_local(cmd):
     with open(base_route + '/localdata/devices_keys.json', 'wb') as outfile:
         json.dump(cmd.devices_keys, outfile)
 
-def scan_miband2(scanner,):
+def scan_miband2(scanner,strikes,thresh):
     print("Scanning!")
     scanner.clear()
     scanner.start()
     t = threading.currentThread()
     while getattr(t, "do_scan", True):
-        scanner.process(0.1)
+        old_devices = copy.deepcopy(scanner.delegate.tmp_devices)
+        scanner.process(2)
+        for d in old_devices.keys():
+            if d in connected_devices.keys():
+                scanner.delegate.tmp_devices[d]["strikes"] = -9999
+            if d in scanner.delegate.tmp_devices.keys() and (d not in connected_devices.keys()):
+                if ((old_devices[d]["device"].rssi == scanner.delegate.tmp_devices[d]["device"].rssi)
+                    or scanner.delegate.tmp_devices[d]["device"].rssi < thresh):
+                    scanner.delegate.tmp_devices[d]["strikes"] += 1
+                    if scanner.delegate.tmp_devices[d]["strikes"] >= strikes:
+                        del scanner.delegate.tmp_devices[d]
     print("Stopped scanning...")
     scanner.stop()
 
@@ -129,13 +140,15 @@ class MiBand2CMD(cmd.Cmd):
     """Command Processor for intercating with many MiBand2s at a time"""
     def __init__(self):
         cmd.Cmd.__init__(self)
+        threshold = -70
+        strikes = 10
         self.sc = Scanner()
-        self.scd = MiBand2ScanDelegate()
+        self.scd = MiBand2ScanDelegate(threshold)
         self.sc.withDelegate(self.scd)
 
         self.mibands = []
 
-        self.scan_thread = threading.Thread(target=scan_miband2, args=(self.sc,))
+        self.scan_thread = threading.Thread(target=scan_miband2, args=(self.sc,strikes,threshold))
         self.scan_thread.start()
 
         for i in range(max_connections):
@@ -154,7 +167,8 @@ class MiBand2CMD(cmd.Cmd):
         return True
 
     def do_devices(self, line):
-        self.mibands = copy.deepcopy(self.scd.tmp_devices)
+        tmp_mibands = copy.deepcopy(self.scd.tmp_devices)
+        self.mibands = {k: v["device"] for k, v in tmp_mibands.items()}
         for idx,mb in enumerate(self.mibands.keys()):
             name = "Someone"
             uid = 0
@@ -424,6 +438,7 @@ class MiBand2CMD(cmd.Cmd):
                 else:
                     try:
                         addr = self.mibands.keys()[dev_id]
+                        self.scd.tmp_devices[addr]["strikes"] = -9999
                         if not addr in self.devices_keys.keys():
                             self.devices_keys[addr] = random_key()
                         mb2 = MiBand2(addr, self.devices_keys[addr], initialize=False)
@@ -490,6 +505,7 @@ class MiBand2CMD(cmd.Cmd):
             mb2 = None
             try:
                 addr = self.mibands.keys()[dev_id]
+                self.scd.tmp_devices[addr]["strikes"] = -9999
                 if not addr in self.devices_keys.keys():
                     self.devices_keys[addr] = random_key()
                 mb2 = MiBand2(addr, self.devices_keys[addr], initialize=False)

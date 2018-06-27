@@ -42,7 +42,11 @@ max_connections = 5
 # For automated download stablish a period in which we don't download data
 # activity_fetch_cooldown = 6 * 60
 connected_devices = {}
+tmp_mibands = {}
 mibands = {}
+strikes = {}
+rssithreshold = -70
+max_strikes = 20
 
 config_route = base_route + "/configuration"
 env_route = config_route + "/" + ENV_CONFIG
@@ -73,15 +77,17 @@ except pyodbc.OperationalError as e:
 
 
 class MiBand2ScanDelegate(DefaultDelegate):
-    def __init__(self):
+    def __init__(self, threshold):
         DefaultDelegate.__init__(self)
+        self.threshold = threshold
 
     def handleDiscovery(self, dev, isNewDev, isNewData):
         try:
             name = dev.getValueText(9)
             serv = dev.getValueText(2)
-            if name == 'MI Band 2' and serv == 'e0fe' and dev.addr:
-                mibands[dev.addr] = dev
+            if name == 'MI Band 2' and serv == 'e0fe' and dev.addr and dev.rssi > self.threshold:
+                tmp_mibands[dev.addr] = dev
+                strikes[dev.addr] = 0
         except:
             print "ERROR"
 
@@ -110,29 +116,24 @@ def decode_auth_token(auth_token):
     except jwt.InvalidTokenError:
         return {"success": False, "data": "Token Error"}
 
-def disconnect_out_of_range(scanner, mibands):
-    dc = list(set(mibands.values()).difference(set(scanner.getDevices())))
-    for d in dc:
-        if d.addr in connected_devices.keys():
-            try:
-                mb2 = connected_devices[row.mac]
-                mb2.disconnect()
-            except BTLEException as e:
-                print("Couldn't phisically disconnect MB2, this is normal")
-                print e
-            finally:
-                del connected_devices[row.mac]
-                del mb2
-                print ("MiBand2 disconnected because it got out of range...")
-
-def scan_miband2(scanner,):
+def scan_miband2(scanner,max_strikes,thresh):
     print("Scanning!")
     scanner.clear()
     scanner.start()
     t = threading.currentThread()
     while getattr(t, "do_scan", True):
-        scanner.process(0.1)
-        disconnect_out_of_range(scanner, mibands)
+        old_mibands = copy.deepcopy(tmp_mibands)
+        scanner.process(2)
+        for d in old_mibands.keys():
+            if d in connected_devices.keys():
+                strikes[d] = 0
+            if d in tmp_mibands.keys() and (d not in connected_devices.keys()):
+                if ((old_mibands[d].rssi == tmp_mibands[d].rssi)
+                    or tmp_mibands[d].rssi < thresh):
+                    strikes[d] += 1
+                    if strikes[d] >= max_strikes:
+                        del tmp_mibands[d]
+                        strikes[d] = 0
     print("Stopped scanning...")
     scanner.stop()
 
@@ -219,6 +220,7 @@ def api_authenticate():
 def devices():
     if request.method == "GET":
         dev_list = []
+        mibands = copy.deepcopy(tmp_mibands)
         for idx,mb in enumerate(mibands.keys()):
             dev_id = mb2db.get_device_id(cnxn_string, mb)
             dev_user = mb2db.get_device_user(cnxn_string, dev_id)
@@ -242,6 +244,7 @@ def devices():
             abort(403)
         else:
             try:
+                strikes[addr] = -9999
                 mb2 = MiBand2(addr, initialize=True)
                 mb2.cleanAlarms()
                 dev_id = mb2db.register_device(cnxn_string, mb2.addr)
@@ -267,6 +270,7 @@ def device(dev_id):
         if request.method == "GET":
                 connected = True if row.mac in connected_devices else False
                 signal = 0
+                mibands = copy.deepcopy(tmp_mibands)
                 if row.mac in mibands.keys():
                     signal = mibands[row.mac].rssi
                 dev_user = mb2db.get_device_user(cnxn_string, dev_id)
@@ -278,6 +282,7 @@ def device(dev_id):
         elif request.method == "PUT":
             if mb2db.is_device_registered(cnxn_string, row.mac):
                 action = request.form.get("action")
+                strikes[row.mac] = -9999
                 if action == "connect" and row.mac not in connected_devices.keys():
                     try:
                         mb2 = MiBand2(row.mac, initialize=False)
@@ -581,10 +586,10 @@ def device_user(dev_id):
         abort(404)
 
 sc = Scanner()
-scd = MiBand2ScanDelegate()
+scd = MiBand2ScanDelegate(rssithreshold)
 sc.withDelegate(scd)
 
-scan_thread = threading.Thread(target=scan_miband2, args=(sc,))
+scan_thread = threading.Thread(target=scan_miband2, args=(sc,max_strikes,rssithreshold))
 scan_thread.start()
 
 for i in range(max_connections):
