@@ -1,4 +1,4 @@
-# PyPiMi
+# PyBand 2
 Python library to interact with the Xiaomi MiBand 2
 
 # Requirements
