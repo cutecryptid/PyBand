@@ -1,5 +1,5 @@
-# PyPiMi
-Python library to interact with the Mi Band 2
+# PyBand 2
+Python library to interact with the Xiaomi MiBand 2
 
 # Requirements
 This library can only run in LINUX environments since it uses the BluePy library.
