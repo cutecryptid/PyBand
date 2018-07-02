@@ -11,6 +11,7 @@ import threading
 import binascii
 from bluepy.btle import Scanner, DefaultDelegate, BTLEException
 import re
+import time
 import sys
 import copy
 import struct
@@ -45,8 +46,9 @@ connected_devices = {}
 tmp_mibands = {}
 mibands = {}
 strikes = {}
-rssithreshold = -70
-max_strikes = 20
+rssithreshold = -75
+max_strikes = 7
+pingtimer = 3
 
 config_route = base_route + "/configuration"
 env_route = config_route + "/" + ENV_CONFIG
@@ -86,8 +88,8 @@ class MiBand2ScanDelegate(DefaultDelegate):
             name = dev.getValueText(9)
             serv = dev.getValueText(2)
             if name == 'MI Band 2' and serv == 'e0fe' and dev.addr and dev.rssi > self.threshold:
-                tmp_mibands[dev.addr] = dev
-                strikes[dev.addr] = 0
+                tmp_mibands[dev.addr.upper()] = dev
+                strikes[dev.addr.upper()] = 0
         except:
             print "ERROR"
 
@@ -123,7 +125,7 @@ def scan_miband2(scanner,max_strikes,thresh):
     t = threading.currentThread()
     while getattr(t, "do_scan", True):
         old_mibands = copy.deepcopy(tmp_mibands)
-        scanner.process(2)
+        scanner.process(3)
         for d in old_mibands.keys():
             if d in connected_devices.keys():
                 strikes[d] = 0
@@ -136,6 +138,20 @@ def scan_miband2(scanner,max_strikes,thresh):
                         strikes[d] = 0
     print("Stopped scanning...")
     scanner.stop()
+
+def ping_connected(sleeptime):
+    print("Pinging connected devices...")
+    t = threading.currentThread()
+    while getattr(t, "do_ping", True):
+        for d in connected_devices.keys():
+            try:
+                connected_devices[d].char_battery.read()
+            except Exception as e:
+                print e
+                connected_devices[d].force_disconnect()
+                del connected_devices[d]
+        time.sleep(sleeptime)
+    print("Stopped pinging...")
 
 def worker():
     while True:
@@ -194,6 +210,7 @@ def reboot():
         if request.form["reboot_key"] == env.get('SERVER', "reboot_key"):
             print("Rebooting API Server...")
             scan_thread.do_scan = False
+            ping_thread.do_ping = False
             for d in connected_devices.values():
                 d.disconnect()
             os.system('reboot')
@@ -220,6 +237,7 @@ def api_authenticate():
 def devices():
     if request.method == "GET":
         dev_list = []
+        print(connected_devices)
         mibands = copy.deepcopy(tmp_mibands)
         for idx,mb in enumerate(mibands.keys()):
             dev_id = mb2db.get_device_id(cnxn_string, mb)
@@ -231,15 +249,16 @@ def devices():
             username = (dev_user.nombre + " " + dev_user.apellidos) if dev_user else "Unregistered"
             dev_dict = {"address":mb, "signal": mibands[mibands.keys()[idx]].rssi,
                         "registered": False, "connected": False, "dev_id": dev_id,
-                        "user_name": username, "battery": battery}
+                        "user_name": username, "battery": battery, "strikes": strikes[mibands[mibands.keys()[idx]].addr.upper()]}
             if mb2db.is_device_registered(cnxn_string, mb):
                 dev_dict["registered"] = True
             if mb in connected_devices.keys():
                 dev_dict["connected"] = True
             dev_list += [dev_dict]
+        print json.dumps(dev_list)
         return json.dumps(dev_list)
     elif request.method == "POST":
-        addr = request.form["address"]
+        addr = request.form["address"].upper()
         if mb2db.is_device_registered(cnxn_string, addr):
             abort(403)
         else:
@@ -252,6 +271,7 @@ def devices():
                 mb2db.update_battery(cnxn_string, mb2.addr, mb2.battery_info['level'])
                 # Device stays connected after initialize, but we don't want that
                 mb2.disconnect()
+                strikes[addr] = 0
                 return json.dumps({"dev_id": dev_id, "registered": True})
             except BTLEException as e:
                 print("There was a problem registering this MiBand2, try again later")
@@ -282,21 +302,24 @@ def device(dev_id):
         elif request.method == "PUT":
             if mb2db.is_device_registered(cnxn_string, row.mac):
                 action = request.form.get("action")
-                strikes[row.mac] = -9999
                 if action == "connect" and row.mac not in connected_devices.keys():
                     try:
+                        strikes[row.mac] = -9999
                         mb2 = MiBand2(row.mac, initialize=False)
                         connected_devices[row.mac] = mb2
                         alarms = mb2db.get_device_alarms(cnxn_string, mb2.addr)
                         mb2db.update_battery(cnxn_string, mb2.addr, mb2.battery_info['level'])
                         for a in alarms:
                             mb2.alarms += [MiBand2Alarm(a["hour"], a["minute"], enabled=a["enabled"], repetitionMask=a["repetition"])]
+                        strikes[row.mac] = 0
                         return json.dumps({"connected": True, "dev_id": row.dispositivoId}), 200
                     except BTLEException as e:
+                        strikes[row.mac] = 0
                         print("There was a problem (dis)connecting to this MiBand2, try again later")
                         print e
                         abort(500)
                     except BTLEException.DISCONNECTED as d:
+                        strikes[row.mac] = 0
                         print("Device disconnected, removing from connected devices")
                         del connected_devices[row.mac]
                         del mb2
@@ -591,6 +614,9 @@ sc.withDelegate(scd)
 
 scan_thread = threading.Thread(target=scan_miband2, args=(sc,max_strikes,rssithreshold))
 scan_thread.start()
+
+ping_thread = threading.Thread(target=ping_connected, args=(pingtimer,))
+ping_thread.start()
 
 for i in range(max_connections):
      t = threading.Thread(target=worker)

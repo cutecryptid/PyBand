@@ -119,6 +119,7 @@ class MiBand2(Peripheral):
         self.init_config_svc()
         self.init_firmware_svc()
         self.init_user_settings_svc()
+        self.init_fede_svc()
 
         self.waitForNotifications(0.5)
         self.setTimeToSystem()
@@ -130,6 +131,9 @@ class MiBand2(Peripheral):
                 print("Disabling %s service notifications status..." % n)
                 getattr(self, 'cccd_'+n).write(b"\x00\x00", True)
                 self.enabled_notifs.remove(n)
+        Peripheral.disconnect(self)
+
+    def force_disconnect(self):
         Peripheral.disconnect(self)
 
     def init_svc(self, name, svc_uuid, char_uuid):
@@ -178,6 +182,9 @@ class MiBand2(Peripheral):
     def init_firmware_svc(self):
         self.init_svc('firmware', mb2c.UUID_SERVICE_FIRMWARE_SERVICE, mb2c.UUID_CHARACTERISTIC_FIRMWARE)
         self.init_svc('firmware_data', mb2c.UUID_SERVICE_FIRMWARE_SERVICE, mb2c.UUID_CHARACTERISTIC_FIRMWARE_DATA)
+
+    def init_fede_svc(self):
+        self.init_svc('fede', mb2c.UUID_SVC_MIBAND2, mb2c.UUID_CHAR_FEDE)
 
     def toggle_background_notifications(self):
         if not self.notif_thread.isAlive():

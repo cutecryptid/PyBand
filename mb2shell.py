@@ -17,6 +17,7 @@ import argparse
 import os
 import string
 import random
+import time
 base_route = os.path.dirname(os.path.realpath(__file__))
 config_route = base_route + "/configuration"
 sys.path.append(base_route + '/lib')
@@ -80,18 +81,30 @@ def scan_miband2(scanner,strikes,thresh):
     t = threading.currentThread()
     while getattr(t, "do_scan", True):
         old_devices = copy.deepcopy(scanner.delegate.tmp_devices)
-        scanner.process(2)
+        scanner.process(1)
         for d in old_devices.keys():
-            if d in connected_devices.keys():
-                scanner.delegate.tmp_devices[d]["strikes"] = -9999
             if d in scanner.delegate.tmp_devices.keys() and (d not in connected_devices.keys()):
-                if ((old_devices[d]["device"].rssi == scanner.delegate.tmp_devices[d]["device"].rssi)
+                if ((old_devices[d]["device"].rssi >= scanner.delegate.tmp_devices[d]["device"].rssi)
                     or scanner.delegate.tmp_devices[d]["device"].rssi < thresh):
                     scanner.delegate.tmp_devices[d]["strikes"] += 1
                     if scanner.delegate.tmp_devices[d]["strikes"] >= strikes:
                         del scanner.delegate.tmp_devices[d]
     print("Stopped scanning...")
     scanner.stop()
+
+def ping_connected(sleeptime):
+    print("Pinging connected devices...")
+    t = threading.currentThread()
+    while getattr(t, "do_ping", True):
+        for d in connected_devices.keys():
+            try:
+                connected_devices[d].char_battery.read()
+            except Exception as e:
+                print e
+                connected_devices[d].force_disconnect()
+                del connected_devices[d]
+        time.sleep(sleeptime)
+    print("Stopped pinging...")
 
 def random_key(length=16):
     return ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(length))
@@ -106,8 +119,8 @@ def do_fetch_activity(item, cmd):
     print "Fetching MiBand2 [%s] activity!" % item
     if item not in connected_devices.keys():
         try:
-            if not item in self.devices_keys.keys():
-                self.devices_keys[item] = random_key()
+            if not item in cmd.devices_keys.keys():
+                cmd.devices_keys[item] = random_key()
             mb2 = MiBand2(addr, self.devices_keys[item], initialize=False)
             connected_devices[item] = mb2
         except BTLEException as e:
@@ -141,7 +154,8 @@ class MiBand2CMD(cmd.Cmd):
     def __init__(self):
         cmd.Cmd.__init__(self)
         threshold = -70
-        strikes = 10
+        strikes = 5
+        pingtimer = 1
         self.sc = Scanner()
         self.scd = MiBand2ScanDelegate(threshold)
         self.sc.withDelegate(self.scd)
@@ -150,6 +164,9 @@ class MiBand2CMD(cmd.Cmd):
 
         self.scan_thread = threading.Thread(target=scan_miband2, args=(self.sc,strikes,threshold))
         self.scan_thread.start()
+
+        self.ping_thread = threading.Thread(target=ping_connected, args=(pingtimer,))
+        self.ping_thread.start()
 
         for i in range(max_connections):
              t = threading.Thread(target=worker, args=(self,))
@@ -160,6 +177,7 @@ class MiBand2CMD(cmd.Cmd):
 
     def exit_safely(self):
         self.scan_thread.do_scan = False
+        self.ping_thread.do_ping = False
         self.scan_thread.join()
         print ("Disconnecting from %s devices" % len(connected_devices.values()))
         for con in connected_devices.values():
@@ -169,6 +187,7 @@ class MiBand2CMD(cmd.Cmd):
     def do_devices(self, line):
         tmp_mibands = copy.deepcopy(self.scd.tmp_devices)
         self.mibands = {k: v["device"] for k, v in tmp_mibands.items()}
+        tmp_strikes = {k: v["strikes"] for k, v in tmp_mibands.items()}
         for idx,mb in enumerate(self.mibands.keys()):
             name = "Someone"
             uid = 0
@@ -181,7 +200,7 @@ class MiBand2CMD(cmd.Cmd):
             if udata:
                 name = udata["alias"]
                 uid = udata["id"]
-            str = "[%s]%10s's MB2 <U:%05d> (%s) %sdB " % (idx,name,uid,mb,self.mibands[self.mibands.keys()[idx]].rssi)
+            str = "[%s]%10s's MB2 <U:%05d> (%s) %sdB S:%s " % (idx,name,uid,mb,self.mibands[self.mibands.keys()[idx]].rssi, "X"*tmp_strikes[self.mibands.keys()[idx]])
             if (args.mode == "db" and mb2db.is_device_registered(mb2db.cnxn, mb)) or (args.mode == "json" and mb in self.registered_devices):
                 str += "[R]"
             if mb in connected_devices:
@@ -453,6 +472,7 @@ class MiBand2CMD(cmd.Cmd):
                                 alarms = []
                         for a in alarms:
                             mb2.alarms += [MiBand2Alarm(a["hour"], a["minute"], enabled=a["enabled"], repetitionMask=a["repetition"])]
+                        self.scd.tmp_devices[addr]["strikes"] = 0
                     except BTLEException as e:
                         print("There was a problem connecting to this MiBand2, try again later")
                         print e
@@ -518,6 +538,7 @@ class MiBand2CMD(cmd.Cmd):
                     self.registered_devices += [mb2.addr]
                 # Device stays connected after initialize, but we don't want that
                 mb2.disconnect()
+                self.scd.tmp_devices[addr]["strikes"] = 0
             except BTLEException as e:
                 print("There was a problem registering this MiBand2, try again later")
                 print e
