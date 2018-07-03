@@ -566,6 +566,7 @@ class MiBand2CMD(cmd.Cmd):
                         mb2db.delete_all_alarms(mb2db.cnxn, self.mibands.keys()[dev_id])
                     else:
                         self.registered_devices.remove(self.mibands.keys()[dev_id])
+                        del devices_keys[self.mibands.keys()[dev_id]]
                     print("MiBand2 unregistered!")
                 except BTLEException:
                     print("There was a problem unregistering this MiBand2, try again later")

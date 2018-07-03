@@ -82,8 +82,8 @@ class MiBand2(Peripheral):
         Peripheral.__init__(self, addr, addrType=ADDR_TYPE_RANDOM)
         print("Connected")
 
-        self._KEY = key
-        self._send_key_cmd = struct.pack('<18s', b'\x01\x08' + str(self._KEY))
+        self.key = key
+        self._send_key_cmd = struct.pack('<18s', b'\x01\x08' + str(self.key))
 
         self.timeout = 2
         self.state = None
@@ -197,7 +197,7 @@ class MiBand2(Peripheral):
             print("Notificaction Thread Stopped!")
 
     def encrypt(self, message):
-        aes = AES.new(self._KEY, AES.MODE_ECB)
+        aes = AES.new(self.key, AES.MODE_ECB)
         return aes.encrypt(message)
 
     def send_key(self):
