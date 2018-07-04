@@ -45,7 +45,9 @@ args = parser.parse_args()
 
 ENV_CONFIG = args.env
 CONFIG_MODE="GERIATIC"
-VERSION_STRING = "0.9"
+VERSION_STRING = "0.10"
+
+DEFAULT_KEY = b'\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39\x40\x41\x42\x43\x44\x45'
 
 max_connections = 5
 q = SetQueue()
@@ -158,10 +160,10 @@ def scan_miband2(scanner,scanthresh):
         scanner.process(2)
         for d in old_mibands.keys():
             if d in connected_devices.keys():
-                reputation[d] = 0
+                reputation[d.upper()] = 50
             if d in tmp_mibands.keys() and (d not in connected_devices.keys()):
-                new_signal = tmp_mibands[d].rssi
-                signal_diff = (old_mibands[d].rssi - tmp_mibands[d].rssi)
+                new_signal = tmp_mibands[d.upper()].rssi
+                signal_diff = (old_mibands[d.upper()].rssi - tmp_mibands[d.upper()].rssi)
                 proximity_factor = 1
                 if new_signal < scanthresh:
                     # If the device is away positive reputation increases slowly
@@ -178,32 +180,32 @@ def scan_miband2(scanner,scanthresh):
 
                 if signal_diff == 0:
                     # If stagnant, reputation decreases drastically
-                    reputation[d] -= 10
+                    reputation[d.upper()] -= 10
                 elif signal_diff in range(-5, 6):
                     # If there is little variation, reputation increases
-                    reputation[d] += 10*proximity_factor
+                    reputation[d.upper()] += 10*proximity_factor
                 elif signal_diff < -5:
                     # If there is a VERY big negative variation, reputation decreases drastically
-                    reputation[d] -= 10
+                    reputation[d.upper()] -= 10
                 elif signal_diff > 5:
                     # If there is a big positive variation, reputation increases a bit
-                    reputation[d] += 5*proximity_factor
+                    reputation[d.upper()] += 5*proximity_factor
 
-                if reputation[d] >= 100:
-                    reputation[d] = 100
-                if reputation[d] <= 0:
-                    reputation[d] = 0
+                if reputation[d.upper()] >= 100:
+                    reputation[d.upper()] = 100
+                if reputation[d.upper()] <= 0:
+                    reputation[d.upper()] = 0
 
-                if reputation[d] >= 90:
-                    if (mb2db.is_device_registered(cnxn_string, d)):
-                        last_sync = mb2db.get_device_last_sync(cnxn_string, d)
+                if reputation[d.upper()] >= 90:
+                    if (mb2db.is_device_registered(cnxn_string, d.upper())):
+                        last_sync = mb2db.get_device_last_sync(cnxn_string, d.upper())
                         timediff = None
                         if last_sync != None:
                             timediff = (datetime.datetime.now() - last_sync)
                         if timediff == None or timediff.total_seconds() > autofetch_cooldown:
-                            q.put(d)
-                if reputation[d] <= 10:
-                    del tmp_mibands[d]
+                            q.put((d.upper(),True))
+                if reputation[d.upper()] <= 10:
+                    del tmp_mibands[d.upper()]
     q.join()
     print("Stopped scanning...")
     scanner.stop()
@@ -214,33 +216,33 @@ def ping_connected(sleeptime):
     while getattr(t, "do_ping", True):
         for d in connected_devices.keys():
             try:
-                connected_devices[d].char_battery.read()
+                connected_devices[d.upper()].char_battery.read()
             except Exception as e:
                 print e
                 if d in connected_devices.keys():
-                    connected_devices[d].force_disconnect()
-                    del connected_devices[d]
+                    connected_devices[d.upper()].force_disconnect()
+                    del connected_devices[d.upper()]
         time.sleep(sleeptime)
     print("Stopped pinging...")
 
 def worker():
     while True:
-        item = q.get()
-        do_fetch_activity(item)
+        item, silent_fetch = q.get()
+        do_fetch_activity(item, silent_fetch)
         q.task_done()
 
-def do_fetch_activity(item):
+def do_fetch_activity(item, silent_fetch):
     print "Fetching MiBand2 [%s] activity!" % item
     disconnect_after = False
     if item not in connected_devices.keys():
         try:
             disconnect_after = True
             if not item in devices_keys.keys():
-                devices_keys[item] = random_key()
-            mb2 = MiBand2(item, devices_keys[item], initialize=False)
-            devices_keys[item] = mb2.key
+                key = DEFAULT_KEY
+            else:
+                key = devices_keys[item.upper()]
+            mb2 = MiBand2(item, key, initialize=False)
             connected_devices[item] = mb2
-            save_keys(devices_keys)
         except BTLEException as e:
             print("There was a problem connecting this MiBand2, try again later")
             print e
@@ -252,9 +254,11 @@ def do_fetch_activity(item):
             last_sync = mb2db.get_device_last_sync(cnxn_string, item)
             if last_sync != None:
                 connected_devices[item].setLastSyncDate(last_sync)
-            connected_devices[item].send_alert(b'\x03')
+            if not silent_fetch:
+                connected_devices[item].send_alert(b'\x03')
             connected_devices[item].fetch_activity_data()
-            connected_devices[item].send_alert(b'\x03')
+            if not silent_fetch:
+                connected_devices[item].send_alert(b'\x03')
             if len(connected_devices[item].getActivityDataBuffer()) > 0:
                 print "Saving Data to DB..."
                 mb2db.write_activity_data(cnxn_string, connected_devices[item])
@@ -391,33 +395,33 @@ def device(dev_id):
                 username = (dev_user.nombre + " " + dev_user.apellidos) if dev_user else "Unregistered"
                 detail_dict = {"dev_id": row.dispositivoId, "battery": row.bateria, "registered": row.registrado,
                                 "address": row.mac, "connected": connected, "signal": signal, "visible": (signal < 0),
-                                "user_name": username, "reputation": reputation[row.mac]}
+                                "user_name": username, "reputation": reputation[row.mac.upper()]}
                 return json.dumps(detail_dict)
         elif request.method == "PUT":
             if mb2db.is_device_registered(cnxn_string, row.mac):
                 action = request.form.get("action")
                 if action == "connect" and row.mac not in connected_devices.keys():
                     try:
-                        reputation[row.mac] = 100
+                        reputation[row.mac.upper()] = 100
                         if not row.mac in devices_keys.keys():
-                            devices_keys[row.mac] = random_key()
-                        mb2 = MiBand2(row.mac, devices_keys[row.mac], initialize=False)
-                        devices_keys[row.mac] = mb2.key
+                            key = DEFAULT_KEY
+                        else:
+                            key = devices_keys[row.mac.upper()]
+                        mb2 = MiBand2(item, key, initialize=False)
                         connected_devices[row.mac] = mb2
                         alarms = mb2db.get_device_alarms(cnxn_string, mb2.addr)
                         mb2db.update_battery(cnxn_string, mb2.addr, mb2.battery_info['level'])
                         for a in alarms:
                             mb2.alarms += [MiBand2Alarm(a["hour"], a["minute"], enabled=a["enabled"], repetitionMask=a["repetition"])]
-                        reputation[row.mac] = 50
-                        save_keys(devices_keys)
+                        reputation[row.mac.upper()] = 50
                         return json.dumps({"connected": True, "dev_id": row.dispositivoId}), 200
                     except BTLEException as e:
-                        reputation[row.mac] = 50
+                        reputation[row.mac.upper()] = 50
                         print("There was a problem (dis)connecting to this MiBand2, try again later")
                         print e
                         abort(500)
                     except BTLEException.DISCONNECTED as d:
-                        reputation[row.mac] = 50
+                        reputation[row.mac.upper()] = 50
                         print("Device disconnected, removing from connected devices")
                         del connected_devices[row.mac]
                         del mb2
@@ -447,7 +451,7 @@ def device(dev_id):
                         dev_id = mb2db.get_device_id(cnxn_string, row.mac)
                         mb2db.unregister_device(cnxn_string, dev_id)
                         mb2db.delete_all_alarms(cnxn_string, dev_id)
-                        del devices_keys[row.mac]
+                        del devices_keys[row.mac.upper()]
                         print("MiBand2 unregistered!")
                         save_keys()
                         return json.dumps({"registered": False, "dev_id": row.dispositivoId}), 200
@@ -627,7 +631,7 @@ def activity(dev_id):
     if row:
         try:
             if request.args.get('fetch') == "1":
-                q.put(row.mac)
+                q.put(row.mac, False)
                 q.join()
         except BTLEException as e:
             print("There was a problem fetching activity of this MiBand2, try again later")
