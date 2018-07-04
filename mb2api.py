@@ -203,7 +203,7 @@ def scan_miband2(scanner,scanthresh):
                         if last_sync != None:
                             timediff = (datetime.datetime.now() - last_sync)
                         if timediff == None or timediff.total_seconds() > autofetch_cooldown:
-                            q.put((d.upper(),True))
+                            q.put((d.upper(),True,))
                 if reputation[d.upper()] <= 10:
                     del tmp_mibands[d.upper()]
     q.join()
@@ -407,7 +407,7 @@ def device(dev_id):
                             key = DEFAULT_KEY
                         else:
                             key = devices_keys[row.mac.upper()]
-                        mb2 = MiBand2(item, key, initialize=False)
+                        mb2 = MiBand2(row.mac.upper(), key, initialize=False)
                         connected_devices[row.mac] = mb2
                         alarms = mb2db.get_device_alarms(cnxn_string, mb2.addr)
                         mb2db.update_battery(cnxn_string, mb2.addr, mb2.battery_info['level'])
@@ -631,7 +631,7 @@ def activity(dev_id):
     if row:
         try:
             if request.args.get('fetch') == "1":
-                q.put(row.mac, False)
+                q.put((row.mac, False,))
                 q.join()
         except BTLEException as e:
             print("There was a problem fetching activity of this MiBand2, try again later")
