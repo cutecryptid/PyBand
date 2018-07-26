@@ -153,7 +153,7 @@ def get_activity_data(cnxn_string, dev_id, start_date, end_date):
     cursor = connection.cursor()
     cursor.execute("""SELECT m.fechaInicial, m.categoria, m.pasos, m.intensidad,
                     m.pulsaciones, du.usuarioId
-                    FROM Medidas m JOIN DispositivoUsuario du
+                    FROM Medidas m LEFT OUTER JOIN DispositivoUsuario du
                     ON m.dispositivoId = du.dispositivoId
 					AND m.fechaInicial >= du.fechaAlta
 					AND m.fechaInicial <= ISNULL(du.fechaBaja, SYSDATETIME())

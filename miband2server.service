@@ -3,7 +3,7 @@ Description=MiBand2 Server and API
 
 [Service]
 Type=idle
-WorkingDirectory=/home/miband2server/scripts
+WorkingDirectory=/home/miband2server/PyBand2/mb2api.py
 ExecStartPre=/usr/local/bin/blescan -t 1
 ExecStart=/home/miband2server/PyBand2/mb2api.py
 Restart=always

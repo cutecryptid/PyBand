@@ -153,7 +153,7 @@ class MiBand2CMD(cmd.Cmd):
     """Command Processor for intercating with many MiBand2s at a time"""
     def __init__(self):
         cmd.Cmd.__init__(self)
-        threshold = -70
+        threshold = -80
         strikes = 5
         pingtimer = 1
         self.sc = Scanner()
@@ -165,8 +165,8 @@ class MiBand2CMD(cmd.Cmd):
         self.scan_thread = threading.Thread(target=scan_miband2, args=(self.sc,strikes,threshold))
         self.scan_thread.start()
 
-        self.ping_thread = threading.Thread(target=ping_connected, args=(pingtimer,))
-        self.ping_thread.start()
+        #self.ping_thread = threading.Thread(target=ping_connected, args=(pingtimer,))
+        #self.ping_thread.start()
 
         for i in range(max_connections):
              t = threading.Thread(target=worker, args=(self,))
@@ -472,7 +472,8 @@ class MiBand2CMD(cmd.Cmd):
                                 alarms = []
                         for a in alarms:
                             mb2.alarms += [MiBand2Alarm(a["hour"], a["minute"], enabled=a["enabled"], repetitionMask=a["repetition"])]
-                        self.scd.tmp_devices[addr]["strikes"] = 0
+                        if addr in self.scd.tmp_devices.keys():
+                            self.scd.tmp_devices[addr]["strikes"] = 0
                     except BTLEException as e:
                         print("There was a problem connecting to this MiBand2, try again later")
                         print e
@@ -566,7 +567,7 @@ class MiBand2CMD(cmd.Cmd):
                         mb2db.delete_all_alarms(mb2db.cnxn, self.mibands.keys()[dev_id])
                     else:
                         self.registered_devices.remove(self.mibands.keys()[dev_id])
-                        del devices_keys[self.mibands.keys()[dev_id]]
+                        del self.devices_keys[self.mibands.keys()[dev_id]]
                     print("MiBand2 unregistered!")
                 except BTLEException:
                     print("There was a problem unregistering this MiBand2, try again later")
