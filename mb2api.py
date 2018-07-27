@@ -436,7 +436,6 @@ def device(dev_id):
                         return json.dumps({"connected": False, "dev_id": row.dispositivoId}), 200
                     except BTLEException as e:
                         print("There was a problem disconnecting this MiBand2, try again later")
-                        del connected_devices[row.mac]
                         print e
                         abort(500)
                     except BTLEException.DISCONNECTED as d:
@@ -479,7 +478,7 @@ def device(dev_id):
                         mb2db.delete_all_alarms(cnxn_string, dev_id)
                         del devices_keys[row.mac.upper()]
                         print("MiBand2 unregistered!")
-                        save_keys(devices_keys)
+                        save_keys()
                         return json.dumps({"registered": False, "dev_id": row.dispositivoId}), 200
                     except BTLEException as e:
                         print("There was a problem unregistering this MiBand2, try again later")
@@ -671,15 +670,9 @@ def activity(dev_id):
         start = datetime.datetime.strptime('1984-01-01 00:00', '%Y-%m-%d %H:%M')
         end = datetime.datetime.now()
         if request.args.get('since'):
-            try:
-                start = datetime.datetime.strptime(request.args.get('since'), '%Y-%m-%d %H:%M')
-            except ValueError as e:
-                start = datetime.datetime.strptime(request.args.get('since'), '%Y/%m/%d %H:%M:%S')
+            start = datetime.datetime.strptime(request.args.get('since'), '%Y-%m-%d %H:%M')
         if request.args.get('until'):
-            try:
-                end = datetime.datetime.strptime(request.args.get('until'), '%Y-%m-%d %H:%M')
-            except ValueError as e:
-                end = datetime.datetime.strptime(request.args.get('until'), '%Y/%m/%d %H:%M:%S')
+            end = datetime.datetime.strptime(request.args.get('until'), '%Y-%m-%d %H:%M')
         frames = mb2db.get_activity_data(cnxn_string, dev_id, start, end)
         f_list = []
         for f in frames:
