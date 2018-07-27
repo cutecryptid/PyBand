@@ -45,7 +45,7 @@ args = parser.parse_args()
 
 ENV_CONFIG = args.env
 CONFIG_MODE="GERIATIC"
-VERSION_STRING = "0.10"
+VERSION_STRING = "0.11"
 
 DEFAULT_KEY = b'\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39\x40\x41\x42\x43\x44\x45'
 
@@ -436,6 +436,31 @@ def device(dev_id):
                         return json.dumps({"connected": False, "dev_id": row.dispositivoId}), 200
                     except BTLEException as e:
                         print("There was a problem disconnecting this MiBand2, try again later")
+                        del connected_devices[row.mac]
+                        print e
+                        abort(500)
+                    except BTLEException.DISCONNECTED as d:
+                        print("Device disconnected, removing from connected devices")
+                        del connected_devices[row.mac]
+                        del mb2
+                        abort(500)
+                elif action == "alert" and row.mac in connected_devices.keys():
+                    try:
+                        print ("Alerting MB2 " + row.mac)
+                        mb2 = connected_devices[row.mac]
+                        if request.args.get('notification') == "message":
+                            mb2.send_alert(b'\x01')
+                        elif request.args.get('notification') == "call":
+                            mb2.send_alert(b'\x02')
+                        elif request.args.get('notification') == "vibrate":
+                            mb2.send_alert(b'\x03')
+                        elif request.args.get('notification') == "stop":
+                            mb2.send_alert(b'\x00')
+                        else:
+                            mb2.send_alert(b'\x03')
+                        return json.dumps({"alerting": True, "dev_id": row.dispositivoId}), 200
+                    except BTLEException as e:
+                        print("There was a problem alerting this MiBand2, try again later")
                         del connected_devices[row.mac]
                         print e
                         abort(500)
