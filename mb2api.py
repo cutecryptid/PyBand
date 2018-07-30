@@ -299,7 +299,7 @@ def reboot():
         if request.form["reboot_key"] == env.get('SERVER', "reboot_key"):
             print("Rebooting API Server...")
             scan_thread.do_scan = False
-            ping_thread.do_ping = False
+            #ping_thread.do_ping = False
             for d in connected_devices.values():
                 d.disconnect()
             os.system('reboot')
@@ -755,8 +755,8 @@ sc.withDelegate(scd)
 scan_thread = threading.Thread(target=scan_miband2, args=(sc,rssithreshold,))
 scan_thread.start()
 
-ping_thread = threading.Thread(target=ping_connected, args=(pingtimer,))
-ping_thread.start()
+#ping_thread = threading.Thread(target=ping_connected, args=(pingtimer,))
+#ping_thread.start()
 
 for i in range(max_connections):
      t = threading.Thread(target=worker)

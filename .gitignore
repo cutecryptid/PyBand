@@ -2,4 +2,4 @@
 **/*.pyc
 localdata/*.json
 localdata/activity_log/*.csv
-*/*/server.conf
+**/**/server.conf
