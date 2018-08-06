@@ -45,7 +45,7 @@ args = parser.parse_args()
 
 ENV_CONFIG = args.env
 CONFIG_MODE="GERIATIC"
-VERSION_STRING = "0.11"
+VERSION_STRING = "0.20"
 
 DEFAULT_KEY = b'\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39\x40\x41\x42\x43\x44\x45'
 
@@ -57,9 +57,8 @@ connected_devices = {}
 tmp_mibands = {}
 mibands = {}
 reputation = {}
-rssithreshold = -75
-autofetch_cooldown = 6*60*60 # 6 hours in seconds
-pingtimer = 3
+
+#pingtimer = 3
 
 config_route = base_route + "/configuration"
 env_route = config_route + "/" + ENV_CONFIG
@@ -71,6 +70,9 @@ devices_keys = None
 try:
     env = ConfigParser.ConfigParser()
     env.readfp(open(env_route + '/server.conf'))
+    rssithreshold = int(env.get('SERVER', "range_threshold"))
+    autofetch = int(env.get('SERVER', "autofetch"))
+    autofetch_cooldown = int(env.get('SERVER', "autofetch_cooldown"))*60*60  # hours in seconds
 except Exception as e:
     print e
     print "unrecognised config mode [%s]" % ENV_CONFIG
@@ -196,7 +198,7 @@ def scan_miband2(scanner,scanthresh):
                 if reputation[d.upper()] <= 0:
                     reputation[d.upper()] = 0
 
-                if reputation[d.upper()] >= 90:
+                if reputation[d.upper()] and autofetch >= 90:
                     if (mb2db.is_device_registered(cnxn_string, d.upper())):
                         last_sync = mb2db.get_device_last_sync(cnxn_string, d.upper())
                         timediff = None
@@ -745,6 +747,23 @@ def device_user(dev_id):
         abort(403)
     else:
         abort(404)
+
+@app.route('/config/', methods = ["GET"])
+def server_config():
+    return json.dumps({"autofetch": autofetch, "autofetch_cooldown": autofetch_cooldown,
+                        "range_threshold": range_threshold})
+
+@app.route('/config/<str:endpoint>', methods = ["GET", "PUT"])
+def device_user(endpoint):
+    if env.has_option('SERVER', endpoint):
+        if request.method == "PUT":
+            newval = request.form.get('config_value')
+            env.set('SERVER', endpoint, str(newval))
+        return json.dumps({endpoint: env.get('SERVER', endpoint)})
+    else:
+        abort(404)
+
+
 
 devices_keys = read_json(base_route + '/localdata/devices_keys.json')
 

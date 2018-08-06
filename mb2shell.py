@@ -554,7 +554,8 @@ class MiBand2CMD(cmd.Cmd):
                 mb2 = MiBand2(addr, self.devices_keys[addr], initialize=False)
                 mb2.cleanAlarms()
                 if args.mode == "db":
-                    mb2db.delete_all_alarms(cnxn_string, mb2.addr)
+                    dev_id = mb2db.get_device_id(cnxn_string, mb2.addr)
+                    mb2db.delete_all_alarms(cnxn_string, dev_id)
                     mb2db.register_device(cnxn_string, mb2.addr)
                     mb2db.update_battery(cnxn_string, mb2.addr, mb2.battery_info['level'])
                 else:
@@ -564,7 +565,6 @@ class MiBand2CMD(cmd.Cmd):
             except BTLEException as e:
                 print("There was a problem registering this MiBand2, try again later")
                 print e
-                mb2.disconnect
 
     def do_unregister(self, params):
         try:

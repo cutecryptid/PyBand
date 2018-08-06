@@ -118,7 +118,10 @@ def register_device(cnxn_string, address):
                           'MiBand2', str(address.upper()), 'pulsera', 1)
     connection.commit()
     connection.close()
-    return row.dispositivoId
+    if row:
+        return row.dispositivoId
+    else:
+        return -1
 
 def unregister_device(cnxn_string, dev_id):
     connection = pyodbc.connect(cnxn_string, timeout=3)
