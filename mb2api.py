@@ -753,8 +753,8 @@ def server_config():
     return json.dumps({"autofetch": autofetch, "autofetch_cooldown": autofetch_cooldown,
                         "range_threshold": range_threshold})
 
-@app.route('/config/<str:endpoint>', methods = ["GET", "PUT"])
-def device_user(endpoint):
+@app.route('/config/<endpoint>/', methods = ["GET", "PUT"])
+def server_config_detail(endpoint):
     if env.has_option('SERVER', endpoint):
         if request.method == "PUT":
             newval = request.form.get('config_value')
