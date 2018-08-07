@@ -127,6 +127,7 @@ class MiBand2(Peripheral):
 
     def disconnect(self):
         if (hasattr(self, 'enabled_notifs')):
+            self.waitForNotifications(3)
             for n in self.enabled_notifs:
                 print("Disabling %s service notifications status..." % n)
                 getattr(self, 'cccd_'+n).write(b"\x00\x00", True)

@@ -331,8 +331,7 @@ def devices():
         mibands = copy.deepcopy(tmp_mibands)
         for idx,mb in enumerate(mibands.keys()):
             dev_id = mb2db.get_device_id(cnxn_string, mb)
-            dev_user_id = mb2db.get_device_user(cnxn_string, dev_id)
-            dev_user = mb2db.get_user_data(cnxn_string, dev_user_id)
+            dev_user = mb2db.get_device_user(cnxn_string, dev_id)
             device = mb2db.get_device_by_id(cnxn_string, dev_id)
             battery = -1
             if device:
@@ -394,8 +393,7 @@ def device(dev_id):
                 mibands = copy.deepcopy(tmp_mibands)
                 if row.mac in mibands.keys():
                     signal = mibands[row.mac].rssi
-                dev_user_id = mb2db.get_device_user(cnxn_string, dev_id)
-                dev_user = mb2db.get_user_data(cnxn_string, dev_user_id)
+                dev_user = mb2db.get_device_user(cnxn_string, dev_id)
                 username = (dev_user.nombre + " " + dev_user.apellidos) if dev_user else "Unregistered"
                 detail_dict = {"dev_id": row.dispositivoId, "battery": row.bateria, "registered": row.registrado,
                                 "address": row.mac, "connected": connected, "signal": signal, "visible": (signal < 0),
@@ -434,6 +432,7 @@ def device(dev_id):
                     try:
                         mb2 = connected_devices[row.mac]
                         mb2.disconnect()
+                        mb2.force_disconnect()
                         del connected_devices[row.mac]
                         del mb2
                         print ("MiBand2 disconnected!")

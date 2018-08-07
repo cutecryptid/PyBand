@@ -62,10 +62,7 @@ def get_device_user(cnxn_string, dev_id):
                     AND du.fechaBaja IS NULL""", dev_id)
     row = cursor.fetchone()
     connection.close()
-    if row:
-        return row.dispositivoId
-    else:
-        return -1
+    return row
 
 
 def get_device_alarms(cnxn_string, address):
