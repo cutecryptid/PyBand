@@ -20,9 +20,9 @@ import random
 import time
 base_route = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(base_route + '/lib')
-from miband2 import MiBand2Alarm
+from mibandalarm import MiBandAlarm
 from miband_generic import MiBand, DEVICE_MODELS
-import miband2db as mb2db
+import mibanddb as mbdb
 
 ENV_CONFIG="development"
 CONFIG_MODE="GERIATIC"
@@ -157,7 +157,7 @@ def do_fetch_activity(item, cmd):
             print e
     try:
         if args.mode == "db":
-            last_sync = mb2db.get_device_last_sync(cnxn_string, item)
+            last_sync = mbdb.get_device_last_sync(cnxn_string, item)
         else:
             last_sync = None
             if item in cmd.devices_last_sync.keys():
@@ -170,7 +170,7 @@ def do_fetch_activity(item, cmd):
         if len(connected_devices[item].getActivityDataBuffer()) > 0:
             print "Saving Data to DB..."
             if args.mode == "db":
-                mb2db.write_activity_data(cnxn_string, connected_devices[item])
+                mbdb.write_activity_data(cnxn_string, connected_devices[item])
             else:
                 connected_devices[item].store_activity_data_file(base_route + '/localdata/activity_log/')
         print "Finished fetching MiBand2 [%s] activity!" % item
@@ -223,10 +223,10 @@ class MiBand2CMD(cmd.Cmd):
             uid = 0
             udata = None
             if args.mode == "db":
-                devid = mb2db.get_device_id(cnxn_string, mb.upper())
-                devuser = mb2db.get_device_user(cnxn_string, devid)
+                devid = mbdb.get_device_id(cnxn_string, mb.upper())
+                devuser = mbdb.get_device_user(cnxn_string, devid)
                 if devuser != -1:
-                    udata = mb2db.get_user_data(cnxn_string,devuser)
+                    udata = mbdb.get_user_data(cnxn_string,devuser)
                 else:
                     udata = None
             else:
@@ -237,12 +237,12 @@ class MiBand2CMD(cmd.Cmd):
                 uid = udata["id"]
             model = self.models[self.mibands.keys()[idx]].upper()
             str = "[%s]%10s's %s <U:%05d> (%s) %sdB S:%s " % (idx, name, model, uid, mb, self.mibands[self.mibands.keys()[idx]].rssi, "X"*tmp_strikes[self.mibands.keys()[idx]])
-            if (args.mode == "db" and mb2db.is_device_registered(cnxn_string, mb)) or (args.mode == "json" and mb in self.registered_devices):
+            if (args.mode == "db" and mbdb.is_device_registered(cnxn_string, mb)) or (args.mode == "json" and mb in self.registered_devices):
                 str += "[R]"
             if mb in connected_devices:
                 mb_dev = connected_devices[mb]
                 if args.mode == "db":
-                    mb2db.update_battery(cnxn_string, mb_dev.addr, mb_dev.battery_info['level'])
+                    mbdb.update_battery(cnxn_string, mb_dev.addr, mb_dev.battery_info['level'])
                 str += "[C] [B:{0:03d}%]".format(mb.battery_info["level"])
             print str
 
@@ -258,7 +258,7 @@ class MiBand2CMD(cmd.Cmd):
         if dev_id >= len(self.mibands.keys()):
             print "*** device not in the device list"
             return
-        if ((args.mode == "db" and mb2db.is_device_registered(cnxn_string, self.mibands.keys()[dev_id]))
+        if ((args.mode == "db" and mbdb.is_device_registered(cnxn_string, self.mibands.keys()[dev_id]))
             or (args.mode == "json" and self.mibands.keys()[dev_id] in self.registered_devices)):
             if self.mibands.keys()[dev_id] in connected_devices.keys():
                 try:
@@ -289,7 +289,7 @@ class MiBand2CMD(cmd.Cmd):
             print "*** device not in the device list"
             return
         alert_int = int(l[1])
-        if ((args.mode == "db" and mb2db.is_device_registered(cnxn_string, self.mibands.keys()[dev_id]))
+        if ((args.mode == "db" and mbdb.is_device_registered(cnxn_string, self.mibands.keys()[dev_id]))
             or args.mode == "json" and self.mibands.keys()[dev_id] in self.registered_devices):
             if self.mibands.keys()[dev_id] in connected_devices.keys():
                 try:
@@ -332,7 +332,7 @@ class MiBand2CMD(cmd.Cmd):
         if dev_id >= len(self.mibands.keys()):
             print "*** device not in the device list"
             return
-        if ((args.mode == "db" and mb2db.is_device_registered(cnxn_string, self.mibands.keys()[dev_id]))
+        if ((args.mode == "db" and mbdb.is_device_registered(cnxn_string, self.mibands.keys()[dev_id]))
             or args.mode == "json" and self.mibands.keys()[dev_id] in self.registered_devices):
             if self.mibands.keys()[dev_id] in connected_devices.keys():
                 try:
@@ -417,14 +417,14 @@ class MiBand2CMD(cmd.Cmd):
             print "*** device not in the device list"
             return
         if args.mode == "db":
-            udata = mb2db.get_user_data(cnxn_string, user_id)
+            udata = mbdb.get_user_data(cnxn_string, user_id)
         if udata or args.mode == "json":
-            if ((args.mode == "db" and mb2db.is_device_registered(cnxn_string, self.mibands.keys()[dev_id]))
+            if ((args.mode == "db" and mbdb.is_device_registered(cnxn_string, self.mibands.keys()[dev_id]))
                 or args.mode == "json" and self.mibands.keys()[dev_id] in self.registered_devices):
                 if self.mibands.keys()[dev_id] in connected_devices.keys():
                     mb = connected_devices[self.mibands.keys()[dev_id]]
                     if args.mode == "db":
-                        if mb2db.set_device_user(cnxn_string, mb.addr, user_id, position[0]):
+                        if mbdb.set_device_user(cnxn_string, mb.addr, user_id, position[0]):
                             mb.setUserInfo(udata["alias"], udata["sex"], udata["height"], udata["weight"], udata["birth"])
                     else:
                         mb.setUserInfo(user_alias, user_gender, user_height, user_weight, (user_bd_year, user_bd_month, user_bd_day))
@@ -451,12 +451,12 @@ class MiBand2CMD(cmd.Cmd):
             if dev_id >= len(self.mibands.keys()):
                 print "*** device not in the device list"
                 return
-            udata = mb2db.get_user_data(cnxn_string, user_id)
+            udata = mbdb.get_user_data(cnxn_string, user_id)
             if udata:
-                if mb2db.is_device_registered(cnxn_string, self.mibands.keys()[dev_id]):
+                if mbdb.is_device_registered(cnxn_string, self.mibands.keys()[dev_id]):
                     if self.mibands.keys()[dev_id] in connected_devices.keys():
                         mb = connected_devices[self.mibands.keys()[dev_id]]
-                        if mb2db.release_device_user(cnxn_string, mb.addr, user_id):
+                        if mbdb.release_device_user(cnxn_string, mb.addr, user_id):
                             print "MiBand Released from user"
                         else:
                             print "There was a problem releasing this MiBand"
@@ -486,7 +486,7 @@ class MiBand2CMD(cmd.Cmd):
         if len(connected_devices.keys()) >= 5:
             print("Can't connect to more than 5 devices at the same time, disconnect some")
         else:
-            if ((args.mode == "db" and mb2db.is_device_registered(cnxn_string, self.mibands.keys()[dev_id]))
+            if ((args.mode == "db" and mbdb.is_device_registered(cnxn_string, self.mibands.keys()[dev_id]))
                 or args.mode == "json" and self.mibands.keys()[dev_id] in self.registered_devices):
                 if self.mibands.keys()[dev_id] in connected_devices.keys():
                     print("That MiBand2 is already connected")
@@ -501,8 +501,8 @@ class MiBand2CMD(cmd.Cmd):
                         mb = MiBand(addr, self.devices_keys[addr], initialize=False, model = model)
                         connected_devices[self.mibands.keys()[dev_id]] = mb
                         if args.mode == "db":
-                            alarms = mb2db.get_device_alarms(cnxn_string, mb.addr)
-                            mb2db.update_battery(cnxn_string, mb.addr, mb.battery_info['level'])
+                            alarms = mbdb.get_device_alarms(cnxn_string, mb.addr)
+                            mbdb.update_battery(cnxn_string, mb.addr, mb.battery_info['level'])
                         else:
                             if mb.addr in self.devices_alarms.keys():
                                 alarms = self.devices_alarms[mb.addr]
@@ -555,7 +555,7 @@ class MiBand2CMD(cmd.Cmd):
         if dev_id >= len(self.mibands.keys()):
             print "*** device not in the device list"
             return
-        if ((args.mode == "db" and mb2db.is_device_registered(cnxn_string, self.mibands.keys()[dev_id]))
+        if ((args.mode == "db" and mbdb.is_device_registered(cnxn_string, self.mibands.keys()[dev_id]))
             or args.mode == "json" and self.mibands.keys()[dev_id] in self.registered_devices):
             print("That MiBand2 is already registered")
         else:
@@ -569,10 +569,10 @@ class MiBand2CMD(cmd.Cmd):
                 mb = MiBand(addr, self.devices_keys[addr], initialize=False, model = model)
                 mb.cleanAlarms()
                 if args.mode == "db":
-                    dev_id = mb2db.get_device_id(cnxn_string, mb.addr)
-                    mb2db.delete_all_alarms(cnxn_string, dev_id)
-                    mb2db.register_device(cnxn_string, mb.addr)
-                    mb2db.update_battery(cnxn_string, mb.addr, mb.battery_info['level'])
+                    dev_id = mbdb.get_device_id(cnxn_string, mb.addr)
+                    mbdb.delete_all_alarms(cnxn_string, dev_id)
+                    mbdb.register_device(cnxn_string, mb.addr)
+                    mbdb.update_battery(cnxn_string, mb.addr, mb.battery_info['level'])
                 else:
                     self.registered_devices += [mb.addr]
                 # Device stays connected after initialize, but we don't want that
@@ -594,13 +594,13 @@ class MiBand2CMD(cmd.Cmd):
         if dev_id >= len(self.mibands.keys()):
             print "*** device not in the device list"
             return
-        if ((args.mode == "db" and mb2db.is_device_registered(cnxn_string, self.mibands.keys()[dev_id]))
+        if ((args.mode == "db" and mbdb.is_device_registered(cnxn_string, self.mibands.keys()[dev_id]))
             or args.mode == "json" and self.mibands.keys()[dev_id] in self.registered_devices):
             if not self.mibands.keys()[dev_id] in connected_devices.values():
                 try:
                     if args.mode == "db":
-                        mb2db.unregister_device(cnxn_string, self.mibands.keys()[dev_id])
-                        mb2db.delete_all_alarms(cnxn_string, self.mibands.keys()[dev_id])
+                        mbdb.unregister_device(cnxn_string, self.mibands.keys()[dev_id])
+                        mbdb.delete_all_alarms(cnxn_string, self.mibands.keys()[dev_id])
                     else:
                         self.registered_devices.remove(self.mibands.keys()[dev_id])
                         del self.devices_keys[self.mibands.keys()[dev_id]]
@@ -626,7 +626,7 @@ class MiBand2CMD(cmd.Cmd):
         if dev_id >= len(self.mibands.keys()):
             print "*** device not in the device list"
             return
-        if ((args.mode == "db" and mb2db.is_device_registered(cnxn_string, self.mibands.keys()[dev_id]))
+        if ((args.mode == "db" and mbdb.is_device_registered(cnxn_string, self.mibands.keys()[dev_id]))
             or args.mode == "json" and self.mibands.keys()[dev_id] in self.registered_devices):
             if self.mibands.keys()[dev_id] in connected_devices.keys():
                 q.put(self.mibands.keys()[dev_id])
@@ -655,12 +655,12 @@ class MiBand2CMD(cmd.Cmd):
         if dev_id >= len(self.mibands.keys()):
             print "*** device not in the device list"
             return
-        if ((args.mode == "db" and mb2db.is_device_registered(cnxn_string, self.mibands.keys()[dev_id]))
+        if ((args.mode == "db" and mbdb.is_device_registered(cnxn_string, self.mibands.keys()[dev_id]))
             or args.mode == "json" and self.mibands.keys()[dev_id] in self.registered_devices):
             if self.mibands.keys()[dev_id] in connected_devices.keys():
                 mb = connected_devices[self.mibands.keys()[dev_id]]
                 if args.mode == "db":
-                    alarms = mb2db.get_device_alarms(cnxn_string, self.mibands.keys()[dev_id])
+                    alarms = mbdb.get_device_alarms(cnxn_string, self.mibands.keys()[dev_id])
                 else:
                     if self.mibands.keys()[dev_id] in self.devices_alarms.keys():
                         alarms = self.devices_alarms[self.mibands.keys()[dev_id]]
@@ -674,7 +674,7 @@ class MiBand2CMD(cmd.Cmd):
                     if len(alarms) > 0:
                         mb.cleanAlarms()
                         if args.mode == "db":
-                            mb2db.delete_all_alarms(cnxn_string, mb.addr)
+                            mbdb.delete_all_alarms(cnxn_string, mb.addr)
                         else:
                             self.devices_alarms[self.mibands.keys()[dev_id]] = []
                 elif command == 'queue':
@@ -682,7 +682,7 @@ class MiBand2CMD(cmd.Cmd):
                         hour, minute = map(lambda x: int(x), l[2].split(":"))
                         alarm_id = mb.queueAlarm(hour, minute)
                         if args.mode == "db":
-                            mb2db.set_alarm(cnxn_string, mb.addr, mb.alarms[alarm_id], alarm_id)
+                            mbdb.set_alarm(cnxn_string, mb.addr, mb.alarms[alarm_id], alarm_id)
                         else:
                             if len(alarms) > 0:
                                 self.devices_alarms[self.mibands.keys()[dev_id]] += [{"enabled": True, "repetition": 128, "hour": hour, "minute": minute}]
@@ -698,7 +698,7 @@ class MiBand2CMD(cmd.Cmd):
                         mb.deleteAlarm(alarm_id)
                         if len(alarms) > 0:
                             if args.mode == "db":
-                                mb2db.delete_alarm(cnxn_string, mb.addr, alarm_id)
+                                mbdb.delete_alarm(cnxn_string, mb.addr, alarm_id)
                             else:
                                 del self.devices_alarms[self.mibands.keys()[dev_id]][alarm_id]
                     except IndexError:
@@ -710,7 +710,7 @@ class MiBand2CMD(cmd.Cmd):
                         alarm_id = int(l[2])
                         mb.toggleAlarm(alarm_id)
                         if args.mode == "db":
-                            mb2db.set_alarm(cnxn_string, mb.addr, mb.alarms[alarm_id], alarm_id)
+                            mbdb.set_alarm(cnxn_string, mb.addr, mb.alarms[alarm_id], alarm_id)
                         else:
                             self.devices_alarms[self.mibands.keys()[dev_id]][alarm_id]["enabled"] = mb.alarms[alarm_id].enabled
                     except IndexError:
@@ -727,7 +727,7 @@ class MiBand2CMD(cmd.Cmd):
                         else:
                             mb.toggleAlarmDay(alarm_id, day_id-1)
                             if args.mode == "db":
-                                mb2db.set_alarm(cnxn_string, mb.addr, mb.alarms[alarm_id], alarm_id)
+                                mbdb.set_alarm(cnxn_string, mb.addr, mb.alarms[alarm_id], alarm_id)
                             else:
                                 self.devices_alarms[self.mibands.keys()[dev_id]][alarm_id]["repetition"] = mb.alarms[alarm_id].repetitionMask
 
@@ -741,7 +741,7 @@ class MiBand2CMD(cmd.Cmd):
                         hour, minute = map(lambda x: int(x), l[3].split(":"))
                         mb.changeAlarmTime(alarm_id, hour, minute)
                         if args.mode == "db":
-                            mb2db.set_alarm(cnxn_string, mb.addr, mb.alarms[alarm_id], alarm_id)
+                            mbdb.set_alarm(cnxn_string, mb.addr, mb.alarms[alarm_id], alarm_id)
                         else:
                             self.devices_alarms[self.mibands.keys()[dev_id]][alarm_id]["hour"] = mb.alarms[alarm_id].hour
                             self.devices_alarms[self.mibands.keys()[dev_id]][alarm_id]["minute"] = mb.alarms[alarm_id].minute

@@ -1,4 +1,4 @@
-from miband2 import MiBand2, MiBand2Alarm
+from miband2 import MiBand2
 from miband3 import MiBand3
 
 DEVICE_MODELS = {"MI Band 2":"mb2", "Mi Band 3": "mb3"}

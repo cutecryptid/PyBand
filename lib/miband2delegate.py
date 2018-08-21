@@ -1,7 +1,7 @@
 import binascii
 import struct
 from bluepy.btle import DefaultDelegate
-from miband2time import MiBand2Time
+from mibandtime import MiBandTime
 
 class MiBand2Delegate(DefaultDelegate):
 

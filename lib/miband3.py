@@ -8,14 +8,12 @@ import binascii
 import datetime
 from Crypto.Cipher import AES
 from bluepy.btle import Peripheral, ADDR_TYPE_RANDOM, Service, Characteristic, Descriptor
-from miband2time import MiBand2Time
-from miband2delegate import MiBand2Delegate
-import miband2constants as mb2c
+from mibandtime import MiBandTime
+from mibandalarm import MiBandAlarm
+from miband3delegate import MiBand3Delegate
+import mibandconstants as mbc
 
-csv_directory = "activity_log/"
-
-lib_path = os.path.dirname(__file__) + ("/" if len(os.path.dirname(__file__)) > 0 else "")
-services_data = json.load(open(lib_path + 'mb3services.json'))
+services_data = json.load(open(mbc.lib_path + 'mb3services.json'))
 
 def string_hashcode(s):
     h = 0
@@ -43,11 +41,9 @@ class MiBand3(Peripheral):
         self.fetch_state = "FETCH"
         self.sleepOffset = sleepOffset
         self.activityDataBuffer = []
-        self.lastSyncDate = MiBand2Time(self, 2000, 00, 00, 00, 00)
+        self.lastSyncDate = MiBandTime(self, 2000, 00, 00, 00, 00)
         self.alarms = []
         self.setDelegate(MiBand2Delegate(self))
-
-        self.svcs = self.getServices()
 
         self.enabled_notifs = []
 
@@ -66,8 +62,14 @@ class MiBand3(Peripheral):
 
         self.init_activity_svc()
         self.init_fetch_svc()
+        self.init_alert_svc()
+        self.init_hrm_svc()
         self.init_time_svc()
+        self.init_dev_event_svc()
         self.init_batt_svc()
+        self.init_config_svc()
+        self.init_firmware_svc()
+        self.init_user_settings_svc()
 
         self.waitForNotifications(0.5)
         self.setTimeToSystem()
@@ -96,32 +98,40 @@ class MiBand3(Peripheral):
                 getattr(self, 'cccd_'+name).write(b"\x01\x00", True)
                 self.enabled_notifs.append(name)
 
-    # def init_svc(self, name, svc_uuid, char_uuid):
-    #     if (not hasattr(self, 'char_'+name)):
-    #         svc_data = self.getServiceByUUID(svc_uuid)
-    #         char = svc_data.getCharacteristics(char_uuid)[0]
-    #         svc = Service(self, svc_uuid, svc_data.hndStart, svc_data.hndEnd)
-    #         setattr(self, 'char_'+name, Characteristic(self, char_uuid, char.handle, char.properties, char.valHandle))
-    #         if len(char.getDescriptors()) > 0:
-    #             setattr(self, 'cccd_'+name, Descriptor(self, char.descs[0].uuid, char.descs[0].handle))
-    #             print("Enabling %s notifications..." % name)
-    #             getattr(self, 'cccd_'+name).write(b"\x01\x00", True)
-    #             self.enabled_notifs.append(name)
-
     def init_auth_svc(self):
-        self.init_svc('auth', mb2c.UUID_SVC_MIBAND2, mb2c.UUID_CHARACTERISTIC_AUTH)
+        self.init_svc('auth', mbc.UUID_SVC_MIBAND2, mbc.UUID_CHARACTERISTIC_AUTH)
 
     def init_activity_svc(self):
-        self.init_svc('activity', mb2c.UUID_SVC_MIBAND, mb2c.UUID_CHARACTERISTIC_5_ACTIVITY_DATA)
+        self.init_svc('activity', mbc.UUID_SVC_MIBAND, mbc.UUID_CHARACTERISTIC_5_ACTIVITY_DATA)
 
     def init_fetch_svc(self):
-        self.init_svc('fetch', mb2c.UUID_SVC_MIBAND, mb2c.UUID_CHARACTERISTIC_4_FETCH)
+        self.init_svc('fetch', mbc.UUID_SVC_MIBAND, mbc.UUID_CHARACTERISTIC_4_FETCH)
+
+    def init_alert_svc(self):
+        self.init_svc('alert', mbc.UUID_SVC_ALERT, mbc.UUID_CHAR_ALERT)
+
+    def init_hrm_svc(self):
+        self.init_svc('hrm_ctrl', mbc.UUID_SVC_HEART_RATE, mbc.UUID_CHAR_HRM_CONTROL)
+        self.init_svc('hrm', mbc.UUID_SVC_HEART_RATE, mbc.UUID_CHAR_HRM_MEASURE)
 
     def init_batt_svc(self):
-        self.init_svc('battery', mb2c.UUID_SVC_MIBAND, mb2c.UUID_CHARACTERISTIC_6_BATTERY_INFO)
+        self.init_svc('battery', mbc.UUID_SVC_MIBAND, mbc.UUID_CHARACTERISTIC_6_BATTERY_INFO)
 
     def init_time_svc(self):
-        self.init_svc('current_time', mb2c.UUID_SVC_MIBAND, mb2c.UUID_CHARACTERISTIC_CURRENT_TIME)
+        self.init_svc('current_time', mbc.UUID_SVC_MIBAND, mbc.UUID_CHARACTERISTIC_CURRENT_TIME)
+
+    def init_dev_event_svc(self):
+        self.init_svc('dev_event', mbc.UUID_SVC_MIBAND, mbc.UUID_CHARACTERISTIC_DEVICEEVENT)
+
+    def init_config_svc(self):
+        self.init_svc('config', mbc.UUID_SVC_MIBAND, mbc.UUID_CHARACTERISTIC_3_CONFIGURATION)
+
+    def init_user_settings_svc(self):
+        self.init_svc('user_settings', mbc.UUID_SVC_MIBAND, mbc.UUID_CHARACTERISTIC_8_USER_SETTINGS)
+
+    def init_firmware_svc(self):
+        self.init_svc('firmware', mbc.UUID_SERVICE_FIRMWARE_SERVICE, mbc.UUID_CHARACTERISTIC_FIRMWARE)
+        self.init_svc('firmware_data', mbc.UUID_SERVICE_FIRMWARE_SERVICE, mbc.UUID_CHARACTERISTIC_FIRMWARE_DATA)
 
     def toggle_background_notifications(self):
         if not self.notif_thread.isAlive():
@@ -174,6 +184,27 @@ class MiBand3(Peripheral):
             elif self.state:
                 return False
 
+    def monitorHeartRate(self):
+        print("Cont. HRM start")
+        self.char_hrm_ctrl.write(b'\x15\x01\x00', True)
+        self.char_hrm_ctrl.write(b'\x15\x01\x01', True)
+        for i in range(30):
+            self.waitForNotifications(self.timeout)
+
+    def monitorHeartRateSleep(self, enable):
+        if enable:
+            print("Enabling Sleep HR Measurement...")
+            self.char_hrm_ctrl.write(b'\x15\x00\x01', True)
+        else:
+            print("Disabling Sleep HR Measurement...")
+            self.char_hrm_ctrl.write(b'\x15\x00\x00', True)
+
+        self.waitForNotifications(self.timeout)
+
+    def setMonitorHeartRateInterval(self, interval):
+        print "Setting heart rate measurement interval to %s minutes" % interval
+        self.char_hrm_ctrl.write(b'\x14' + struct.pack('B', interval), True)
+
     def req_battery(self):
         print("Requesting Battery Info")
         b_data = self.char_battery.read()
@@ -181,15 +212,15 @@ class MiBand3(Peripheral):
         b_info['level'] = struct.unpack('1b', b_data[1])[0]
         b_info['status'] = 'normal' if struct.unpack('1b', b_data[2])[0] == 0 else 'charging'
         y,m,d,h,mm,s,tz = struct.unpack('<1H6B', b_data[3:11])
-        b_info['prev_charge'] = MiBand2Time(self, y, m, d, h, mm, sec=s, dst=0, tz=tz)
+        b_info['prev_charge'] = MiBandTime(self, y, m, d, h, mm, sec=s, dst=0, tz=tz)
         y,m,d,h,mm,s,tz = struct.unpack('<1H6B', b_data[11:19])
-        b_info['last_charge'] = MiBand2Time(self, y, m, d, h, mm, sec=s, dst=0, tz=tz)
+        b_info['last_charge'] = MiBandTime(self, y, m, d, h, mm, sec=s, dst=0, tz=tz)
         b_info['last_charge_amount'] = struct.unpack('<1b', b_data[19])[0]
         return b_info
 
     def getTime(self):
         dtm = self.char_current_time.read()
-        return MiBand2Time.dateBytesToDatetime(self, dtm)
+        return MiBandTime.dateBytesToDatetime(self, dtm)
 
     def setTime(self, dtm):
         bytes = dtm.getBytes()
@@ -198,13 +229,13 @@ class MiBand3(Peripheral):
     def setTimeToSystem(self):
         now = datetime.datetime.now()
         print("Setting time to %s" % str(now))
-        self.setTime(MiBand2Time(self, now.year, now.month, now.day, now.hour, now.minute, sec=now.second))
+        self.setTime(MiBandTime(self, now.year, now.month, now.day, now.hour, now.minute, sec=now.second))
 
     def getLastSyncDate(self):
         return self.lastSyncDate
 
     def setLastSyncDate(self,date):
-        dtm = MiBand2Time(self, date.year, date.month, date.day, date.hour, date.minute)
+        dtm = MiBandTime(self, date.year, date.month, date.day, date.hour, date.minute)
         self.lastSyncDate = dtm
 
     def fetch_activity_data(self):
@@ -249,3 +280,97 @@ class MiBand3(Peripheral):
 
     def clearActivityDataBuffer(self):
         self.activityDataBuffer = []
+
+    def event_listen(self):
+        print ("Listening for any event")
+        while True:
+            self.waitForNotifications(self.timeout)
+
+    def onEvent(self, data):
+        if data == 1:
+            print "Fell Asleep"
+        elif data == 2:
+            print "Woke Up"
+        elif data == 4:
+            print "Button Pressed"
+
+    def setUserInfo(self, alias, sex, height, weight, birth_date):
+        print("Attempting to set user info...")
+        userid = string_hashcode(alias)
+
+        user_msg = b'\x4f\x00\x00'
+        user_msg += struct.pack('<H', birth_date[0])
+        user_msg += struct.pack('B', birth_date[1])
+        user_msg += struct.pack('B', birth_date[2])
+        user_msg += struct.pack('B', sex)
+        user_msg += struct.pack('<H', height)
+        user_msg += struct.pack('<H', weight*200)
+        user_msg += struct.pack('<i', userid)
+
+        self.char_user_settings.write(user_msg)
+        self.waitForNotifications(self.timeout)
+
+    def setWearLocation(self, location):
+        if location in ['left', 'right']:
+            print("Attempting to set wear location to %s wrist..." % location)
+            if location == 'left':
+                self.char_user_settings.write(b'\x20\x00\x00\x02')
+            else:
+                self.char_user_settings.write(b'\x20\x00\x00\x82')
+            self.waitForNotifications(self.timeout)
+        else:
+            print("Only left and right wrists supported, sorry three-handed man")
+
+    def setDistanceUnit(self, unit):
+        if unit in ['metric', 'imperial']:
+            print("Attempting to change to %s system..." % unit)
+            if unit == 'metric':
+                self.char_user_settings.write(b'\x06\x03\x00\x00')
+            else:
+                self.char_user_settings.write(b'\x06\x03\x00\x01')
+            self.waitForNotifications(self.timeout)
+        else:
+            print("Only metric and imperial supported, sorry natural system fan")
+
+    def setLiftWristToActivate(self, enable):
+        if enable:
+            print("Enabling activate display on wrist lift")
+            self.char_config.write(b'\x05\x00\x01')
+        else:
+            print("Disabling activate display on wrist lift")
+            self.char_config.write(b'\x05\x00\x00')
+        self.waitForNotifications(self.timeout)
+
+    def setFitnessGoal(self, goal):
+        print("Attempting to set Fitness Goal to %s steps..." % goal)
+
+        goal_msg = b'\x10\x00\x00'
+        goal_msg += struct.pack('H', goal)
+        goal_msg += b'\x00\x00'
+
+        self.char_user_settings.write(goal_msg)
+        self.waitForNotifications(self.timeout)
+
+    def setGoalNotification(self, enable):
+        self.enable_notif('config', True)
+
+        if enable:
+            print("Enabling Goal Notification...")
+            self.char_config.write(b'\x06\x06\x00\x01')
+        else:
+            print("Disabling Goal Notification...")
+            self.char_config.write(b'\x06\x06\x00\x00')
+        self.waitForNotifications(self.timeout)
+
+    def factoryReset(self, force=False):
+        if not force:
+            print ("Factory resetting will wipe everything and change the device's MAC, use 'force' parameter if you know what you are doing")
+        else:
+            print("Resetting Device...")
+            self.char_config.write(b'\x06\x0b\x00\x01')
+            self.waitForNotifications(self.timeout)
+            self.disconnect()
+
+    def reboot(self):
+        self.char_firmware.write(b'\x05')
+        self.waitForNotifications(self.timeout)

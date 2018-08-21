@@ -8,68 +8,18 @@ import binascii
 import datetime
 from Crypto.Cipher import AES
 from bluepy.btle import Peripheral, ADDR_TYPE_RANDOM, Service, Characteristic, Descriptor
-from miband2time import MiBand2Time
+from mibandtime import MiBandTime
 from miband2delegate import MiBand2Delegate
-import miband2constants as mb2c
+from mibandalarm import MiBandAlarm
+import mibandconstants as mbc
 
-csv_directory = "activity_log/"
-
-lib_path = os.path.dirname(__file__) + ("/" if len(os.path.dirname(__file__)) > 0 else "")
-services_data = json.load(open(lib_path + 'mb2services.json'))
+services_data = json.load(open(mbc.lib_path + 'mb2services.json'))
 
 def string_hashcode(s):
     h = 0
     for c in s:
         h = (31 * h + ord(c)) & 0xFFFFFFFF
     return ((h + 0x80000000) & 0xFFFFFFFF) - 0x80000000
-
-class MiBand2Alarm:
-    def __init__ (self, hour, minute, enabled=True, repetitionMask=128):
-        self.hour = hour
-        self.minute = minute
-        self.enabled = enabled
-        self.repetitionMask = repetitionMask
-
-    def toggle(self):
-        self.enabled = not self.enabled
-        return self.enabled
-
-    def toggleDay(self, day):
-        mask = (self.repetitionMask ^ (2**day))
-        if mask == 0:
-            mask = 128
-        if mask > 128:
-            mask ^= 128
-        self.repetitionMask = mask
-
-    def getRepetitionMask(self):
-        return self.repetitionMask
-
-    def getMessage(self, index):
-        base = 0
-        if self.enabled:
-            base = 128
-
-        mask = self.getRepetitionMask()
-
-        return b'\x02' + struct.pack('4B', (base+index), self.hour, self.minute, mask)
-
-    def __str__(self):
-        repr = "[{0}] ".format("E" if self.enabled else "D")
-        repr += "{0:02d}:{1:02d}".format(self.hour, self.minute)
-        if self.getRepetitionMask() != 128:
-            mask = self.getRepetitionMask()
-            repr += " ({0}{1}{2}{3}{4}{5}{6})".format(
-                        "MON" if mask & (2**0) else "",
-                        " TUE" if mask & (2**1) else "",
-                        " WED" if mask & (2**2) else "",
-                        " THU" if mask & (2**3) else "",
-                        " FRI" if mask & (2**4) else "",
-                        " SAT" if mask & (2**5) else "",
-                        " SUN" if mask & (2**6) else "")
-        else:
-            repr += " (SINGLE SHOT)"
-        return repr
 
 class MiBand2(Peripheral):
     _send_rnd_cmd = struct.pack('<2s', b'\x02\x08')
@@ -90,7 +40,7 @@ class MiBand2(Peripheral):
         self.fetch_state = "FETCH"
         self.sleepOffset = sleepOffset
         self.activityDataBuffer = []
-        self.lastSyncDate = MiBand2Time(self, 2000, 00, 00, 00, 00)
+        self.lastSyncDate = MiBandTime(self, 2000, 00, 00, 00, 00)
         self.alarms = []
         self.setDelegate(MiBand2Delegate(self))
 
@@ -150,42 +100,42 @@ class MiBand2(Peripheral):
                 self.enabled_notifs.append(name)
 
     def init_auth_svc(self):
-        self.init_svc('auth', mb2c.UUID_SVC_MIBAND2, mb2c.UUID_CHARACTERISTIC_AUTH)
+        self.init_svc('auth', mbc.UUID_SVC_MIBAND2, mbc.UUID_CHARACTERISTIC_AUTH)
 
     def init_activity_svc(self):
-        self.init_svc('activity', mb2c.UUID_SVC_MIBAND, mb2c.UUID_CHARACTERISTIC_5_ACTIVITY_DATA)
+        self.init_svc('activity', mbc.UUID_SVC_MIBAND, mbc.UUID_CHARACTERISTIC_5_ACTIVITY_DATA)
 
     def init_fetch_svc(self):
-        self.init_svc('fetch', mb2c.UUID_SVC_MIBAND, mb2c.UUID_CHARACTERISTIC_4_FETCH)
+        self.init_svc('fetch', mbc.UUID_SVC_MIBAND, mbc.UUID_CHARACTERISTIC_4_FETCH)
 
     def init_alert_svc(self):
-        self.init_svc('alert', mb2c.UUID_SVC_ALERT, mb2c.UUID_CHAR_ALERT)
+        self.init_svc('alert', mbc.UUID_SVC_ALERT, mbc.UUID_CHAR_ALERT)
 
     def init_hrm_svc(self):
-        self.init_svc('hrm_ctrl', mb2c.UUID_SVC_HEART_RATE, mb2c.UUID_CHAR_HRM_CONTROL)
-        self.init_svc('hrm', mb2c.UUID_SVC_HEART_RATE, mb2c.UUID_CHAR_HRM_MEASURE)
+        self.init_svc('hrm_ctrl', mbc.UUID_SVC_HEART_RATE, mbc.UUID_CHAR_HRM_CONTROL)
+        self.init_svc('hrm', mbc.UUID_SVC_HEART_RATE, mbc.UUID_CHAR_HRM_MEASURE)
 
     def init_batt_svc(self):
-        self.init_svc('battery', mb2c.UUID_SVC_MIBAND, mb2c.UUID_CHARACTERISTIC_6_BATTERY_INFO)
+        self.init_svc('battery', mbc.UUID_SVC_MIBAND, mbc.UUID_CHARACTERISTIC_6_BATTERY_INFO)
 
     def init_time_svc(self):
-        self.init_svc('current_time', mb2c.UUID_SVC_MIBAND, mb2c.UUID_CHARACTERISTIC_CURRENT_TIME)
+        self.init_svc('current_time', mbc.UUID_SVC_MIBAND, mbc.UUID_CHARACTERISTIC_CURRENT_TIME)
 
     def init_dev_event_svc(self):
-        self.init_svc('dev_event', mb2c.UUID_SVC_MIBAND, mb2c.UUID_CHARACTERISTIC_DEVICEEVENT)
+        self.init_svc('dev_event', mbc.UUID_SVC_MIBAND, mbc.UUID_CHARACTERISTIC_DEVICEEVENT)
 
     def init_config_svc(self):
-        self.init_svc('config', mb2c.UUID_SVC_MIBAND, mb2c.UUID_CHARACTERISTIC_3_CONFIGURATION)
+        self.init_svc('config', mbc.UUID_SVC_MIBAND, mbc.UUID_CHARACTERISTIC_3_CONFIGURATION)
 
     def init_user_settings_svc(self):
-        self.init_svc('user_settings', mb2c.UUID_SVC_MIBAND, mb2c.UUID_CHARACTERISTIC_8_USER_SETTINGS)
+        self.init_svc('user_settings', mbc.UUID_SVC_MIBAND, mbc.UUID_CHARACTERISTIC_8_USER_SETTINGS)
 
     def init_firmware_svc(self):
-        self.init_svc('firmware', mb2c.UUID_SERVICE_FIRMWARE_SERVICE, mb2c.UUID_CHARACTERISTIC_FIRMWARE)
-        self.init_svc('firmware_data', mb2c.UUID_SERVICE_FIRMWARE_SERVICE, mb2c.UUID_CHARACTERISTIC_FIRMWARE_DATA)
+        self.init_svc('firmware', mbc.UUID_SERVICE_FIRMWARE_SERVICE, mbc.UUID_CHARACTERISTIC_FIRMWARE)
+        self.init_svc('firmware_data', mbc.UUID_SERVICE_FIRMWARE_SERVICE, mbc.UUID_CHARACTERISTIC_FIRMWARE_DATA)
 
     def init_fede_svc(self):
-        self.init_svc('fede', mb2c.UUID_SVC_MIBAND2, mb2c.UUID_CHAR_FEDE)
+        self.init_svc('fede', mbc.UUID_SVC_MIBAND2, mbc.UUID_CHAR_FEDE)
 
     def toggle_background_notifications(self):
         if not self.notif_thread.isAlive():
@@ -266,15 +216,15 @@ class MiBand2(Peripheral):
         b_info['level'] = struct.unpack('1b', b_data[1])[0]
         b_info['status'] = 'normal' if struct.unpack('1b', b_data[2])[0] == 0 else 'charging'
         y,m,d,h,mm,s,tz = struct.unpack('<1H6B', b_data[3:11])
-        b_info['prev_charge'] = MiBand2Time(self, y, m, d, h, mm, sec=s, dst=0, tz=tz)
+        b_info['prev_charge'] = MiBandTime(self, y, m, d, h, mm, sec=s, dst=0, tz=tz)
         y,m,d,h,mm,s,tz = struct.unpack('<1H6B', b_data[11:19])
-        b_info['last_charge'] = MiBand2Time(self, y, m, d, h, mm, sec=s, dst=0, tz=tz)
+        b_info['last_charge'] = MiBandTime(self, y, m, d, h, mm, sec=s, dst=0, tz=tz)
         b_info['last_charge_amount'] = struct.unpack('<1b', b_data[19])[0]
         return b_info
 
     def getTime(self):
         dtm = self.char_current_time.read()
-        return MiBand2Time.dateBytesToDatetime(self, dtm)
+        return MiBandTime.dateBytesToDatetime(self, dtm)
 
     def setTime(self, dtm):
         bytes = dtm.getBytes()
@@ -283,7 +233,7 @@ class MiBand2(Peripheral):
     def setTimeToSystem(self):
         now = datetime.datetime.now()
         print("Setting time to %s" % str(now))
-        self.setTime(MiBand2Time(self, now.year, now.month, now.day, now.hour, now.minute, sec=now.second))
+        self.setTime(MiBandTime(self, now.year, now.month, now.day, now.hour, now.minute, sec=now.second))
 
     def setDisplayTimeFormat(self, format):
         if format == "date":
@@ -309,7 +259,7 @@ class MiBand2(Peripheral):
         return self.lastSyncDate
 
     def setLastSyncDate(self,date):
-        dtm = MiBand2Time(self, date.year, date.month, date.day, date.hour, date.minute)
+        dtm = MiBandTime(self, date.year, date.month, date.day, date.hour, date.minute)
         self.lastSyncDate = dtm
 
     def fetch_activity_data(self):
@@ -376,7 +326,7 @@ class MiBand2(Peripheral):
             print "Can't store more than 5 alarms at a time."
             return -1
         else:
-            alarm = MiBand2Alarm(hour, minute, enabled=enableAlarm,
+            alarm = MiBandAlarm(hour, minute, enabled=enableAlarm,
                                             repetitionMask=repetitionMask)
             self.alarms.append(alarm)
             index = len(self.alarms)-1
@@ -392,7 +342,7 @@ class MiBand2(Peripheral):
         else:
             if repetitionMask == 0:
                 repetitionMask = 128
-            alarm = MiBand2Alarm(hour, minute, enabled=enableAlarm,
+            alarm = MiBandAlarm(hour, minute, enabled=enableAlarm,
                                             repetitionMask=repetitionMask)
             self.alarms[index] = alarm
             print "Writing Alarm {0} at position {1}".format(str(alarm), index)
@@ -441,7 +391,7 @@ class MiBand2(Peripheral):
             self.waitForNotifications(self.timeout)
 
         last = len(self.alarms)-1
-        alarm = MiBand2Alarm(0, 0, enabled=False)
+        alarm = MiBandAlarm(0, 0, enabled=False)
         self.char_config.write(alarm.getMessage(last))
         self.waitForNotifications(self.timeout)
 
@@ -450,7 +400,7 @@ class MiBand2(Peripheral):
     def cleanAlarms(self):
         print "Clearing all alarms from device"
         for i in range(10):
-            alarm = MiBand2Alarm(0, 0, enabled=False)
+            alarm = MiBandAlarm(0, 0, enabled=False)
             self.char_config.write(alarm.getMessage(i))
             self.waitForNotifications(self.timeout)
         self.alarms = []
