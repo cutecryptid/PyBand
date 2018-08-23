@@ -43,7 +43,7 @@ class MiBand3(Peripheral):
         self.activityDataBuffer = []
         self.lastSyncDate = MiBandTime(self, 2000, 00, 00, 00, 00)
         self.alarms = []
-        self.setDelegate(MiBand2Delegate(self))
+        self.setDelegate(MiBandDelegate(self))
 
         self.enabled_notifs = []
 

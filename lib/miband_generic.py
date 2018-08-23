@@ -9,3 +9,12 @@ class MiBand():
             MiBand2(addr, key, sleepOffset, initialize)
         else:
             MiBand3(addr, key, sleepOffset, initialize)
+
+    def disconnect(self):
+        pass
+
+    def force_disconnect(self):
+        pass
+
+    def init_svc(self, name, svc_uuid, char_uuid):
+        pass
