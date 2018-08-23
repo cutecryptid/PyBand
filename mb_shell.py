@@ -46,7 +46,7 @@ except Exception as e:
     sys.exit(-1)
 
 config = ConfigParser.ConfigParser()
-config.readfp(open(config_route + '/mb2_presets.conf'))
+config.readfp(open(config_route + '/mb_presets.conf'))
 
 cnxn = {"server": env.get('DATABASE', "server"), "database": env.get('DATABASE', "database"),
         "username": env.get('DATABASE', "username"), "password": env.get('DATABASE', "password")}
@@ -55,7 +55,7 @@ cnxn_string = ('DRIVER={ODBC Driver 17 for SQL Server};Server='+cnxn["server"]+
                 ';Database='+cnxn["database"]+';uid='+cnxn["username"]+
                 ';pwd='+ cnxn["password"])
 
-class MiBand2ScanDelegate(DefaultDelegate):
+class MiBandScanDelegate(DefaultDelegate):
     def __init__(self, thresh):
         DefaultDelegate.__init__(self)
         self.tmp_devices = {}
@@ -65,7 +65,7 @@ class MiBand2ScanDelegate(DefaultDelegate):
         try:
             name = dev.getValueText(9)
             serv = dev.getValueText(2)
-            if serv == 'e0fe' and dev.addr and dev.rssi >= self.thresh:
+            if serv == '0000fee0-0000-1000-8000-00805f9b34fb' and dev.addr and dev.rssi >= self.thresh:
                 if name == 'MI Band 2':
                     self.tmp_devices[dev.addr] = {"device": dev, "name": name, "model": "mb2", "strikes": 0}
                 elif name == 'Mi Band 3':
@@ -145,7 +145,7 @@ def worker(cmd):
         q.task_done()
 
 def do_fetch_activity(item, cmd):
-    print "Fetching MiBand2 [%s] activity!" % item
+    print "Fetching MiBand [%s] activity!" % item
     if item not in connected_devices.keys():
         try:
             if not item in cmd.devices_keys.keys():
@@ -153,7 +153,7 @@ def do_fetch_activity(item, cmd):
             mb = MiBand(item, cmd.devices_keys[item], initialize=False)
             connected_devices[item] = mb
         except BTLEException as e:
-            print("There was a problem connecting this MiBand2, try again later")
+            print("There was a problem connecting this MiBand, try again later")
             print e
     try:
         if args.mode == "db":
@@ -173,20 +173,20 @@ def do_fetch_activity(item, cmd):
                 mbdb.write_activity_data(cnxn_string, connected_devices[item])
             else:
                 connected_devices[item].store_activity_data_file(base_route + '/localdata/activity_log/')
-        print "Finished fetching MiBand2 [%s] activity!" % item
+        print "Finished fetching MiBand [%s] activity!" % item
     except BTLEException as e:
-        print("There was a problem retrieving this MiBand2's activity, try again later")
+        print("There was a problem retrieving this MiBand's activity, try again later")
         print e
 
-class MiBand2CMD(cmd.Cmd):
-    """Command Processor for intercating with many MiBand2s at a time"""
+class MiBandCMD(cmd.Cmd):
+    """Command Processor for intercating with many MiBands at a time"""
     def __init__(self):
         cmd.Cmd.__init__(self)
         threshold = -70
         strikes = 5
         pingtimer = 1
         self.sc = Scanner()
-        self.scd = MiBand2ScanDelegate(threshold)
+        self.scd = MiBandScanDelegate(threshold)
         self.sc.withDelegate(self.scd)
 
         self.mibands = []
@@ -265,11 +265,11 @@ class MiBand2CMD(cmd.Cmd):
                     mb = connected_devices[self.mibands.keys()[dev_id]]
                     mb.reboot()
                 except BTLEException:
-                    print("There was a problem rebooting this MiBand2, try again later")
+                    print("There was a problem rebooting this MiBand, try again later")
             else:
-                print("That MiBand2 is not connected!")
+                print("That MiBand is not connected!")
         else:
-            print("That MiBand2 is not registered")
+            print("That MiBand is not registered")
 
     def do_alert(self, params):
         l = params.split()
@@ -298,11 +298,11 @@ class MiBand2CMD(cmd.Cmd):
                     mb.send_alert(data)
                     print "Sending Notification: " + binascii.hexlify(data)
                 except BTLEException:
-                    print("There was a problem alerting this MiBand2, try again later")
+                    print("There was a problem alerting this MiBand, try again later")
             else:
-                print("That MiBand2 is not connected!")
+                print("That MiBand is not connected!")
         else:
-            print("That MiBand2 is not registered")
+            print("That MiBand is not registered")
 
     def do_configure(self, params):
         l = params.split()
@@ -372,12 +372,12 @@ class MiBand2CMD(cmd.Cmd):
                         mb.setDisplayCaller(config.getint(preset, "DisplayCaller"))
 
                 except BTLEException as e:
-                    print("There was a problem configuring this MiBand2, try again later")
+                    print("There was a problem configuring this MiBand, try again later")
                     print e
             else:
-                print("That MiBand2 is not connected, please connect it before configuring.")
+                print("That MiBand is not connected, please connect it before configuring.")
         else:
-            print("That MiBand2 is not registered, please register it before configuring.")
+            print("That MiBand is not registered, please register it before configuring.")
 
     def do_setuser(self, params):
         try:
@@ -430,9 +430,9 @@ class MiBand2CMD(cmd.Cmd):
                         mb.setUserInfo(user_alias, user_gender, user_height, user_weight, (user_bd_year, user_bd_month, user_bd_day))
                     mb.setWearLocation(position[1])
                 else:
-                    print("MiBand2 should be connected before setting user data")
+                    print("MiBand should be connected before setting user data")
             else:
-                print("MiBand2 should be registered before setting user data")
+                print("MiBand should be registered before setting user data")
         else:
             print("*** user with id %s doesn't exist" % user_id)
 
@@ -461,9 +461,9 @@ class MiBand2CMD(cmd.Cmd):
                         else:
                             print "There was a problem releasing this MiBand"
                     else:
-                        print("MiBand2 should be connected before releasing user data")
+                        print("MiBand should be connected before releasing user data")
                 else:
-                    print("MiBand2 should be registered before releasing user data")
+                    print("MiBand should be registered before releasing user data")
             else:
                 print("*** user with id %s doesn't exist" % user_id)
         else:
@@ -489,7 +489,7 @@ class MiBand2CMD(cmd.Cmd):
             if ((args.mode == "db" and mbdb.is_device_registered(cnxn_string, self.mibands.keys()[dev_id]))
                 or args.mode == "json" and self.mibands.keys()[dev_id] in self.registered_devices):
                 if self.mibands.keys()[dev_id] in connected_devices.keys():
-                    print("That MiBand2 is already connected")
+                    print("That MiBand is already connected")
                 else:
                     try:
                         addr = self.mibands.keys()[dev_id]
@@ -509,12 +509,12 @@ class MiBand2CMD(cmd.Cmd):
                             else:
                                 alarms = []
                         for a in alarms:
-                            mb.alarms += [MiBand2Alarm(a["hour"], a["minute"], enabled=a["enabled"], repetitionMask=a["repetition"])]
+                            mb.alarms += [MiBandAlarm(a["hour"], a["minute"], enabled=a["enabled"], repetitionMask=a["repetition"])]
                     except BTLEException as e:
-                        print("There was a problem connecting to this MiBand2, try again later")
+                        print("There was a problem connecting to this MiBand, try again later")
                         print e
             else:
-                print("You have to register the MiBand2 before connecting to it")
+                print("You have to register the MiBand before connecting to it")
 
     def do_disconnect(self, params):
         try:
@@ -535,12 +535,12 @@ class MiBand2CMD(cmd.Cmd):
                 mb.disconnect()
                 del connected_devices[self.mibands.keys()[dev_id]]
                 del mb
-                print ("MiBand2 disconnected!")
+                print ("MiBand disconnected!")
             except BTLEException as e:
-                print("There was a problem disconnecting this MiBand2, try again later")
+                print("There was a problem disconnecting this MiBand, try again later")
                 print e
         else:
-            print("That MiBand2 isn't connected!")
+            print("That MiBand isn't connected!")
 
     def do_register(self, params):
         try:
@@ -557,7 +557,7 @@ class MiBand2CMD(cmd.Cmd):
             return
         if ((args.mode == "db" and mbdb.is_device_registered(cnxn_string, self.mibands.keys()[dev_id]))
             or args.mode == "json" and self.mibands.keys()[dev_id] in self.registered_devices):
-            print("That MiBand2 is already registered")
+            print("That MiBand is already registered")
         else:
             mb = None
             try:
@@ -578,7 +578,7 @@ class MiBand2CMD(cmd.Cmd):
                 # Device stays connected after initialize, but we don't want that
                 mb.disconnect()
             except BTLEException as e:
-                print("There was a problem registering this MiBand2, try again later")
+                print("There was a problem registering this MiBand, try again later")
                 print e
 
     def do_unregister(self, params):
@@ -604,13 +604,13 @@ class MiBand2CMD(cmd.Cmd):
                     else:
                         self.registered_devices.remove(self.mibands.keys()[dev_id])
                         del self.devices_keys[self.mibands.keys()[dev_id]]
-                    print("MiBand2 unregistered!")
+                    print("MiBand unregistered!")
                 except BTLEException:
-                    print("There was a problem unregistering this MiBand2, try again later")
+                    print("There was a problem unregistering this MiBand, try again later")
             else:
                 print("Disconnect the miBand2 first!")
         else:
-            print("That MiBand2 is not registered")
+            print("That MiBand is not registered")
 
 
     def do_activity(self, params):
@@ -632,9 +632,9 @@ class MiBand2CMD(cmd.Cmd):
                 q.put(self.mibands.keys()[dev_id])
                 q.join()
             else:
-                print("MiBand2 should be connected before fetching activity data")
+                print("MiBand should be connected before fetching activity data")
         else:
-            print("MiBand2 should be registered before fetching activity data")
+            print("MiBand should be registered before fetching activity data")
 
     def do_alarms(self, params):
         l = params.split()
@@ -750,9 +750,9 @@ class MiBand2CMD(cmd.Cmd):
                     except ValueError:
                         print "*** toggleday's alarm_id and hour (HH:MM) should be both numbers"
             else:
-                print("MiBand2 should be connected before viewing/changing alarms")
+                print("MiBand should be connected before viewing/changing alarms")
         else:
-            print("MiBand2 should be registered before viewing/changing alarms")
+            print("MiBand should be registered before viewing/changing alarms")
 
     def do_save(self, line):
         if args.mode == "json":
@@ -778,7 +778,7 @@ if __name__ == '__main__':
                     help='Storage mode')
 
     args = parser.parse_args()
-    mb2cmd = MiBand2CMD()
+    mb2cmd = MiBandCMD()
     if args.mode == "db":
         try:
             pyodbc.connect(cnxn_string, timeout=3)

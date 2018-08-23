@@ -100,7 +100,7 @@ def get_device_alarms_by_id(cnxn_string, dev_id):
     return device_alarms
 
 
-def register_device(cnxn_string, address):
+def register_device(cnxn_string, address, type):
     connection = pyodbc.connect(cnxn_string, timeout=3)
     cursor = connection.cursor()
     cursor.execute("""SELECT d.registrado, d.dispositivoId FROM Dispositivo d
@@ -112,7 +112,7 @@ def register_device(cnxn_string, address):
     else:
         cursor.execute("""INSERT INTO Dispositivo(nombre, mac, tipoDispositivo, registrado)
                           VALUES (?, ?, ?, ?)""",
-                          'MiBand2', str(address.upper()), 'pulsera', 1)
+                          'MiBand2', str(address.upper()), type, 1)
     connection.commit()
     connection.close()
     if row:

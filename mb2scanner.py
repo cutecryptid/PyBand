@@ -10,7 +10,8 @@ from bluepy.btle import Scanner, DefaultDelegate, BTLEException
 base_route = os.path.dirname(os.path.realpath(__file__))
 config_route = base_route + "/configuration"
 sys.path.append(base_route + '/lib')
-from miband2 import MiBand2, MiBand2Alarm
+from miband_generic import MiBand
+from mibandalarm import MiBandAlarm
 
 max_connections = 5
 connected_devices = {}
@@ -25,10 +26,12 @@ class MiBand2ScanDelegate(DefaultDelegate):
         try:
             name = dev.getValueText(9)
             serv = dev.getValueText(2)
-            if name == 'MI Band 2' and serv == 'e0fe' and dev.addr and dev.rssi >= self.scanthresh:
-                if dev.addr not in self.tmp_devices.keys():
-                    self.tmp_devices[dev.addr] = {"device": dev, "reputation": 50}
-        except:
+            if serv == '0000fee0-0000-1000-8000-00805f9b34fb' and dev.addr:
+                if dev.rssi >= self.scanthresh:
+                    if dev.addr not in self.tmp_devices.keys():
+                        self.tmp_devices[dev.addr] = {"device": dev, "reputation": 50}
+        except Exception as e:
+            print e
             print "ERROR"
 
 def scan_miband2(scanner, scanthresh):
@@ -87,7 +90,7 @@ def scan_miband2(scanner, scanthresh):
     scanner.stop()
 
 def main():
-    scanthresh = -75
+    scanthresh = -200
     sc = Scanner()
     scd = MiBand2ScanDelegate(scanthresh)
     sc.withDelegate(scd)
@@ -100,12 +103,12 @@ def main():
     while True:
         os.system('clear')
         mibands = copy.deepcopy(scd.tmp_devices)
-        print "Mi Band 2 Scanner"
-        print "Near Mi Bands 2: \t{0}".format(len(mibands))
+        print "Mi Band Scanner"
+        print "Near Mi Bands: \t{0}".format(len(mibands))
         print "------------------------------"
         for idx, mb in enumerate(mibands.values()):
-            print "[{0}] {1}-{2} <{3}> ({4}dB) REP: {5}".format(idx, mb["device"].getValueText(9),
-                mb["device"].getValueText(2), mb["device"].addr, mb["device"].rssi, mb["reputation"])
+            print "[{0}] {1} <{2}> ({3}dB) REP: {4}".format(idx, mb["device"].getValueText(9),
+                mb["device"].addr, mb["device"].rssi, mb["reputation"])
         time.sleep(2)
 
     scan_thread.do_start = False
