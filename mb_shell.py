@@ -21,7 +21,8 @@ import time
 base_route = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(base_route + '/lib')
 from mibandalarm import MiBandAlarm
-from miband_generic import MiBand, DEVICE_MODELS
+from miband2 import MiBand2
+from miband3 import MiBand3
 import mibanddb as mbdb
 
 ENV_CONFIG="development"
@@ -150,7 +151,11 @@ def do_fetch_activity(item, cmd):
         try:
             if not item in cmd.devices_keys.keys():
                 cmd.devices_keys[item] = random_key()
-            mb = MiBand(item, cmd.devices_keys[item], initialize=False)
+            model = self.models[item]
+            if model.upper() == "MB2":
+                mb = MiBand2(addr, self.devices_keys[addr], initialize=False)
+            elif model.upper() == "MB3":
+                mb = MiBand3(addr, self.devices_keys[addr], initialize=False)
             connected_devices[item] = mb
         except BTLEException as e:
             print("There was a problem connecting this MiBand, try again later")
@@ -493,12 +498,14 @@ class MiBandCMD(cmd.Cmd):
                 else:
                     try:
                         addr = self.mibands.keys()[dev_id]
-                        model = self.models.keys()[dev_id]
+                        model = self.models[addr]
                         self.scd.tmp_devices[addr]["strikes"] = -9999
                         if not addr in self.devices_keys.keys():
                             self.devices_keys[addr] = random_key()
-
-                        mb = MiBand(addr, self.devices_keys[addr], initialize=False, model = model)
+                        if model.upper() == "MB2":
+                            mb = MiBand2(addr, self.devices_keys[addr], initialize=False)
+                        elif model.upper() == "MB3":
+                            mb = MiBand3(addr, self.devices_keys[addr], initialize=False)
                         connected_devices[self.mibands.keys()[dev_id]] = mb
                         if args.mode == "db":
                             alarms = mbdb.get_device_alarms(cnxn_string, mb.addr)
@@ -562,11 +569,14 @@ class MiBandCMD(cmd.Cmd):
             mb = None
             try:
                 addr = self.mibands.keys()[dev_id]
-                model = self.models.keys()[dev_id]
+                model = self.models[addr]
                 self.scd.tmp_devices[addr]["strikes"] = -9999
                 if not addr in self.devices_keys.keys():
                     self.devices_keys[addr] = random_key()
-                mb = MiBand(addr, self.devices_keys[addr], initialize=False, model = model)
+                if model.upper() == "MB2":
+                    mb = MiBand2(addr, self.devices_keys[addr], initialize=False)
+                elif model.upper() == "MB3":
+                    mb = MiBand3(addr, self.devices_keys[addr], initialize=False)
                 mb.cleanAlarms()
                 if args.mode == "db":
                     dev_id = mbdb.get_device_id(cnxn_string, mb.addr)

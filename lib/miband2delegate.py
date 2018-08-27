@@ -2,6 +2,7 @@ import binascii
 import struct
 from bluepy.btle import DefaultDelegate
 from mibandtime import MiBandTime
+from miband_activity_frame import MiBandActivityFrame
 
 class MiBand2Delegate(DefaultDelegate):
 
@@ -59,7 +60,7 @@ class MiBand2Delegate(DefaultDelegate):
             for i in range(len(data)/4):
                 frame = data[i*4:(i*4)+4]
                 act_type, act_intens, act_steps, act_heart = struct.unpack("4B", frame)
-                parsed_frame = MiBand2ActivityFrame(self.device, self.fetchDate, act_type, act_intens, act_steps, act_heart)
+                parsed_frame = MiBandActivityFrame(self.device, self.fetchDate, act_type, act_intens, act_steps, act_heart)
                 self.device.activityDataBuffer.append(parsed_frame)
                 #parsed_frame
                 self.fetchDate = self.fetchDate.addMinutes(1)
@@ -69,7 +70,7 @@ class MiBand2Delegate(DefaultDelegate):
                 self.device.fetch_state = "ERROR"
             elif data[:3] == b'\x10\x01\x01':
                 bts, year, month, day, hour, min, dst, tz = struct.unpack('<IH6B', data[3:])
-                self.fetchDate = MiBand2Time(self.device, year, month, day, hour, min)
+                self.fetchDate = MiBandTime(self.device, year, month, day, hour, min)
                 if (bts > 0):
                     print("Fetching {0} activity frames since {1}".format(bts, self.fetchDate))
                     print("Fetch Round {0}".format(self.fetchCount))
@@ -129,15 +130,3 @@ class MiBand2Delegate(DefaultDelegate):
 
         else:
             print("Unhandled Response " + hex(hnd) + ": " + str(binascii.hexlify(data)))
-
-class MiBand2ActivityFrame:
-    def __init__(self, device, dtm, type, intensity, steps, heartrate):
-        self.device = device
-        self.dtm = dtm
-        self.type = type
-        self.intensity = intensity
-        self.steps = steps
-        self.heartrate = heartrate
-
-    def __str__(self):
-        return str(self.dtm) + " (" + str(self.type) + ") !" + str(self.intensity) + "! #" + str(self.steps) + "# ^" + str(self.heartrate) + "^"

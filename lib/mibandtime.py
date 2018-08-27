@@ -49,11 +49,11 @@ class MiBandTime:
         if (len(datetime) == 8):
             dtm = struct.unpack('<H4B', datetime[0:6])
             tz = struct.unpack('<2B', datetime[6:8])
-            mbDate = MiBand2Time(self, device, dtm[0], dtm[1], dtm[2], dtm[3], dtm[4], dst=tz[0], tz=tz[1])
+            mbDate = MiBandTime(self, device, dtm[0], dtm[1], dtm[2], dtm[3], dtm[4], dst=tz[0], tz=tz[1])
         elif (len(datetime) == 11):
             dtm = struct.unpack('<H7B', datetime[0:9])
             tz = struct.unpack('<2B', datetime[9:11])
-            mbDate = MiBand2Time(device, dtm[0], dtm[1], dtm[2], dtm[3], dtm[4], sec=dtm[5], weekday=dtm[6], dst=tz[0], tz=tz[1])
+            mbDate = MiBandTime(device, dtm[0], dtm[1], dtm[2], dtm[3], dtm[4], sec=dtm[5], weekday=dtm[6], dst=tz[0], tz=tz[1])
         else:
             raise ValueError('Unsupported DatetimeBytes length {0}'.format(len(datetime)))
         return mbDate
@@ -79,9 +79,9 @@ class MiBandTime:
 
         if self.precision == "sec":
             tmp_weekday = calendar.weekday(tmp_year, tmp_month%12+1, tmp_day%monthdays+1)+1
-            return MiBand2Time(self, tmp_year, tmp_month%12+1 , tmp_day%monthdays+1, tmp_hour%24, tmp_min%60, tmp_sec%60, weekday=tmp_weekday, dst=self.dst, tz=self.tz)
+            return MiBandTime(self, tmp_year, tmp_month%12+1 , tmp_day%monthdays+1, tmp_hour%24, tmp_min%60, tmp_sec%60, weekday=tmp_weekday, dst=self.dst, tz=self.tz)
         else:
-            return MiBand2Time(self, tmp_year, tmp_month%12+1, tmp_day%monthdays+1, tmp_hour%24, tmp_min%60, dst=self.dst, tz=self.tz)
+            return MiBandTime(self, tmp_year, tmp_month%12+1, tmp_day%monthdays+1, tmp_hour%24, tmp_min%60, dst=self.dst, tz=self.tz)
 
     def minutesUntilNow(self):
         now = datetime.datetime.now()

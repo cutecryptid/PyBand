@@ -24,7 +24,8 @@ import ConfigParser
 from flask import Flask
 base_route = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(base_route + '/lib')
-from miband_generic import MiBand
+from miband2 import MiBand2
+from miband3 import MiBand3
 from mibandalarm import MiBandAlarm
 import mibanddb as mbdb
 
@@ -254,7 +255,10 @@ def do_fetch_activity(item, silent_fetch):
                 key = DEFAULT_KEY
             else:
                 key = devices_keys[item.upper()]
-            mb = MiBand(item, key, initialize=False, model = model[item])
+            if model[item] == "mb2":
+                mb = MiBand2(item, key, initialize=False)
+            elif model[item] == "mb3":
+                mb = MiBand3(item, key, initialize=False)
             connected_devices[item] = mb
         except BTLEException as e:
             print("There was a problem connecting this MiBand, try again later")
@@ -367,7 +371,10 @@ def devices():
                 reputation[addr] = 100
                 if not addr in devices_keys.keys():
                     devices_keys[addr] = random_key()
-                mb = MiBand(addr, devices_keys[addr], initialize=False, model=model[addr.upper()])
+                if model[addr] == "mb2":
+                    mb = MiBand2(addr, devices_keys[addr], initialize=False)
+                elif model[addr] == "mb3":
+                    mb = MiBand3(addr, devices_keys[addr], initialize=False)
                 devices_keys[addr] = mb.key
                 connected_devices[addr] = mb
                 save_keys(devices_keys)
@@ -422,7 +429,10 @@ def device(dev_id):
                             key = DEFAULT_KEY
                         else:
                             key = devices_keys[row.mac.upper()]
-                        mb = MiBand(row.mac.upper(), key, initialize=False, model=model[row.mac.upper()])
+                        if model[row.mac.upper()] == "mb2":
+                            mb = MiBand2(row.mac.upper(), key, initialize=False,)
+                        elif model[row.mac.upper()] == "mb3":
+                            mb = MiBand3(row.mac.upper(), key, initialize=False,)
                         connected_devices[row.mac] = mb
                         alarms = mbdb.get_device_alarms(cnxn_string, mb.addr)
                         mbdb.update_battery(cnxn_string, mb.addr, mb.battery_info['level'])

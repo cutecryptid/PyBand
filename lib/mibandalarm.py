@@ -1,3 +1,5 @@
+import struct
+
 class MiBandAlarm:
     def __init__ (self, hour, minute, enabled=True, repetitionMask=128):
         self.hour = hour
