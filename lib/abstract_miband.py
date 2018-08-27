@@ -11,8 +11,7 @@ from mibandtime import MiBandTime
 from mibandalarm import MiBandAlarm
 import mibandconstants as mbc
 
-DEVICE_MODELS = {"MI Band 2":"mb2", "Mi Band 3": "mb3"}
-
+# Auxiliar function to encode the username to the MiBand
 def string_hashcode(s):
     h = 0
     for c in s:
@@ -20,6 +19,8 @@ def string_hashcode(s):
     return ((h + 0x80000000) & 0xFFFFFFFF) - 0x80000000
 
 class AbstractMiBand(Peripheral):
+    # Pre-enconded byte commands to do the basic functionality
+    # Other commands are not pre-encoded in variables and are just used once on their methods
     _send_rnd_cmd = struct.pack('<2s', b'\x02\x08')
     _send_enc_key = struct.pack('<2s', b'\x03\x08')
     _fetch_cmd = struct.pack('<1s', b'\x02')
@@ -27,42 +28,56 @@ class AbstractMiBand(Peripheral):
     _activity_data_type_activity_cmd = struct.pack('<1s', b'\x01')
 
     def __init__(self, addr, key, sleepOffset=0, initialize=False):
+        # Both mibands are created as a BLE peripheral
         Peripheral.__init__(self, addr, addrType=ADDR_TYPE_RANDOM)
         print("Connected")
 
         self.key = key
 
+        # The command with the AUTH KEY has to be created during initialization as it's parametrized
         self._send_key_cmd = struct.pack('<18s', b'\x01\x08' + str(self.key))
 
-        self.timeout = 2
-        self.state = None
-        self.fetch_state = "FETCH"
-        self.sleepOffset = sleepOffset
-        self.activityDataBuffer = []
-        self.lastSyncDate = MiBandTime(self, 2000, 00, 00, 00, 00)
+        # Default values for any MiBand
+        self.timeout = 2 # Common timeout for BLE responses in seconds
+        self.state = None # AUTH state, used only during authentication
+        self.fetch_state = "FETCH" # FETCH state, used only suring activity data fetching
+        self.sleepOffset = sleepOffset # Offset in hours to allow th band to record sleeping during the day if needed
+        # MBs only record sleep at night, if the user usually sleeps during the day because whatever, this parameter
+        # has to be adjusted accordingly so the MB "thinks" the user is sleeping at times it can record sleep.
+        self.activityDataBuffer = [] # Buffer for the fetched activity data, flushed once it's saved
+        self.lastSyncDate = MiBandTime(self, 2000, 00, 00, 00, 00) # Initial sync date, can't be read from device, stored locally
         self.alarms = []
-        self.enabled_notifs = []
+        self.enabled_notifs = [] # Services with notifications we have suscribed to so we can turn them off before disconnecting
 
         # Enable auth service notifications on startup
         self.init_auth_svc()
         self.waitForNotifications(self.timeout)
         self.setSecurityLevel(level="medium")
 
+        # Set the right delegate (See MiBand2Delegate, MiBand3Delegate)
         self.setDelegate(self.get_model_delegate())
 
         if initialize:
+            # Just store the auth key on both sides and do the handshake
             self.initialize()
             self.waitForNotifications(0.5)
         else:
+            # Once authenticated we can skip some steps
             self.authenticate()
             self.waitForNotifications(0.5)
 
+    # Abstract method to return proper model
     def get_model(self):
         pass
 
+    # Abstract method to return proper delegate
     def get_model_delegate(self):
         pass
 
+    # Initializes any characteristic given a name, a service UUID and the characteristic's UUID
+    # This is done by loading data from a JSON file describing the full GATT of each device
+    # instead of querying the device, that is SO MUCH slower
+    # Alsos suscribes to the characteristic's notifications
     def init_svc(self, name, svc_uuid, char_uuid):
         if (not hasattr(self, 'char_'+name)):
             services_data = json.load(open(mbc.lib_path + self.get_model() + 'services.json'))
@@ -76,6 +91,8 @@ class AbstractMiBand(Peripheral):
                 getattr(self, 'cccd_'+name).write(b"\x01\x00", True)
                 self.enabled_notifs.append(name)
 
+    # Each characteristic/group of characteristics are initialized on their own methods
+    # MBC is a constants file that gives name to each relevant UUID so it can be used here
     def init_auth_svc(self):
         self.init_svc('auth', mbc.UUID_SVC_MIBAND2, mbc.UUID_CHARACTERISTIC_AUTH)
 
@@ -111,6 +128,7 @@ class AbstractMiBand(Peripheral):
         self.init_svc('firmware', mbc.UUID_SERVICE_FIRMWARE_SERVICE, mbc.UUID_CHARACTERISTIC_FIRMWARE)
         self.init_svc('firmware_data', mbc.UUID_SERVICE_FIRMWARE_SERVICE, mbc.UUID_CHARACTERISTIC_FIRMWARE_DATA)
 
+    # Starts a thread that checks for notifications on the background, delegate handles them
     def toggle_background_notifications(self):
         if not self.notif_thread.isAlive():
             print("Starting Notificaction Thread...")
@@ -121,6 +139,7 @@ class AbstractMiBand(Peripheral):
             self.notif_thread.start()
             print("Notificaction Thread Stopped!")
 
+    # Auxiliar methods for authentication/initialization
     def encrypt(self, message):
         aes = AES.new(self.key, AES.MODE_ECB)
         return aes.encrypt(message)
@@ -162,6 +181,7 @@ class AbstractMiBand(Peripheral):
             elif self.state:
                 return False
 
+    # Politely disconnect from device, unsuscribing from notifiations and such
     def disconnect(self):
         if (hasattr(self, 'enabled_notifs')):
             self.waitForNotifications(3)
@@ -171,6 +191,7 @@ class AbstractMiBand(Peripheral):
                 self.enabled_notifs.remove(n)
         Peripheral.disconnect(self)
 
+    # Roughly disconnect if something goes poorly (Device gets out of range)
     def force_disconnect(self):
         Peripheral.disconnect(self)
 
@@ -221,6 +242,7 @@ class AbstractMiBand(Peripheral):
         print("Setting time to %s" % str(now))
         self.setTime(MiBandTime(self, now.year, now.month, now.day, now.hour, now.minute, sec=now.second))
 
+    # Changes time display to time or datetime (not tested on MB3)
     def setDisplayTimeFormat(self, format):
         if format == "date":
             print "Enabling Date Format..."
@@ -231,6 +253,7 @@ class AbstractMiBand(Peripheral):
         else:
             print "Only 'date' and 'time' formats supported"
 
+    # Changes time display to 12h or 24h format (not tested on MB3)
     def setDisplayTimeHours(self, format):
         if format == 12:
             print "Enabling 12 hours Format..."
@@ -248,6 +271,7 @@ class AbstractMiBand(Peripheral):
         dtm = MiBandTime(self, date.year, date.month, date.day, date.hour, date.minute)
         self.lastSyncDate = dtm
 
+    # Multiple functions to fetch activity fron the MiBand, implemented as a state machine
     def fetch_activity_data(self):
         self.fetch_state = "FETCH"
 
