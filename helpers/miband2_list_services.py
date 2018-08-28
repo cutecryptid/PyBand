@@ -3,6 +3,8 @@ sys.path.append('./lib')
 from bluepy.btle import *
 import time
 
+# Script to list the GATT Services of a MB2 (modify to use with MB3)
+
 mac = "f8:39:cb:d3:7c:33"
 
 #mb2 = MiBand2("fc:5a:18:28:15:53")

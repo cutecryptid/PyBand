@@ -1,11 +1,13 @@
 from bluepy.btle import Scanner, DefaultDelegate
 from miband2 import MiBand2, ActivityDelegate
 
+# Script to initalize all the MB2s in range
+
 print "Scanning for nearby MiBands2..."
 sc = Scanner()
 devs = sc.scan(5)
 
-print "Found {0} devices! Initializing...".format(len(devs)) 
+print "Found {0} devices! Initializing...".format(len(devs))
 mibands = []
 for d in devs:
     mb = MiBand2(d)

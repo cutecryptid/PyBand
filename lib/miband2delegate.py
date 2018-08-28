@@ -18,6 +18,15 @@ class MiBand2Delegate(DefaultDelegate):
         self.fetchDate = None
         self.device.activityDataBuffer = []
 
+    # Main method, receives a notification with HANDLE and DATA
+    # HANDLE: Determines the GATT characteristic the notification comes from
+    # DATA: The binary encoded data of the notification
+
+    # Generally, three first bytes indicate status
+    # Usually responses are like 0x10, <ENDPOINT>, <STATUS>
+    # Endpoint refers to a code to identify the endpoint among a characteristic (not related to GATT codes)
+    # Status is 0x01 for success and other values usually mean errors
+    # The rest of the bytes (if present) are the body of the notification and should be interpreted accordingly
     def handleNotification(self, hnd, data):
         # Debug purposes
         # print("HANDLE: " + str(hex(hnd)))
@@ -52,6 +61,8 @@ class MiBand2Delegate(DefaultDelegate):
             else:
                 print("Unhandled Battery Response " + hex(hnd) + ": " + str(binascii.hexlify(data)))
 
+        # Activity doesn't include datetime, only the first response, the following timestamps
+        # have to be calculated by adding one minute for each data frame
         elif hasattr(self.device, 'char_activity') and hnd == self.device.char_activity.getHandle():
             self.pulledBytes = len(data)
             self.sessionBytes += len(data)

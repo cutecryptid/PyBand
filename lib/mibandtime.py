@@ -2,6 +2,13 @@ import calendar
 import datetime
 import struct
 
+# Class to represent DateTime for MB devices and encode/decode them properly
+# There are some significant differences that have to be addressed so it's not as easy
+# as using datetime module and just encode/decode
+
+# MB Datetime comes in two flavors: minutes (used in activity data frames) and seconds
+# used mainly everywhere else. Seconds precision also include weekday (monday = 0)
+
 class MiBandTime:
     def __init__(self, device, year, month, day, hour, min, sec=None, weekday=None, dst=0, tz=4):
         # Infer precision from parameters if not specified

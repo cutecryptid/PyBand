@@ -10,13 +10,15 @@ from bluepy.btle import Scanner, DefaultDelegate, BTLEException
 base_route = os.path.dirname(os.path.realpath(__file__))
 config_route = base_route + "/configuration"
 sys.path.append(base_route + '/lib')
-from miband_generic import MiBand
+from miband2 import MiBand2
+from miband3 import MiBand3
 from mibandalarm import MiBandAlarm
 
 max_connections = 5
 connected_devices = {}
 
-class MiBand2ScanDelegate(DefaultDelegate):
+# Scanner script that tests the working of the scanner with reputation system for the API
+class MiBandScanDelegate(DefaultDelegate):
     def __init__(self, scanthresh):
         DefaultDelegate.__init__(self)
         self.tmp_devices = {}
@@ -34,7 +36,11 @@ class MiBand2ScanDelegate(DefaultDelegate):
             print e
             print "ERROR"
 
-def scan_miband2(scanner, scanthresh):
+# Scanning process that checks for new devices and calculates reputation based on different parameters
+# Note that a far away device won't disappear from the scanner devices list but will keep it's data static
+# We check for nearby-ness and stilness of devices to recalculate reputation
+# With very few reputation, device gets deleted, with enough reputation, activity gets fetched automatically
+def scan_miband(scanner, scanthresh):
     print("Scanning!")
     scanner.clear()
     scanner.start()
@@ -92,12 +98,12 @@ def scan_miband2(scanner, scanthresh):
 def main():
     scanthresh = -200
     sc = Scanner()
-    scd = MiBand2ScanDelegate(scanthresh)
+    scd = MiBandScanDelegate(scanthresh)
     sc.withDelegate(scd)
 
     mibands = []
 
-    scan_thread = threading.Thread(target=scan_miband2, args=(sc,scanthresh))
+    scan_thread = threading.Thread(target=scan_miband, args=(sc,scanthresh))
     scan_thread.start()
 
     while True:

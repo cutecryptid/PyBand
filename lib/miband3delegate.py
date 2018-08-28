@@ -4,6 +4,9 @@ from bluepy.btle import DefaultDelegate
 from mibandtime import MiBandTime
 from miband_activity_frame import MiBandActivityFrame
 
+# This Delegate is a duplicate of MB2, at the moment of writing, the same delegate
+# works well for both devices, but delegates are separated for encapsulation reasons
+
 class MiBand3Delegate(DefaultDelegate):
 
     """This Class inherits DefaultDelegate to handle the different notifications."""
@@ -18,6 +21,15 @@ class MiBand3Delegate(DefaultDelegate):
         self.fetchDate = None
         self.device.activityDataBuffer = []
 
+    # Main method, receives a notification with HANDLE and DATA
+    # HANDLE: Determines the GATT characteristic the notification comes from
+    # DATA: The binary encoded data of the notification
+
+    # Generally, three first bytes indicate status
+    # Usually responses are like 0x10, <ENDPOINT>, <STATUS>
+    # Endpoint refers to a code to identify the endpoint among a characteristic (not related to GATT codes)
+    # Status is 0x01 for success and other values usually mean errors
+    # The rest of the bytes (if present) are the body of the notification and should be interpreted accordingly
     def handleNotification(self, hnd, data):
         # Debug purposes
         # print("HANDLE: " + str(hex(hnd)))

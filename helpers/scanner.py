@@ -1,5 +1,7 @@
 from bluepy.btle import Scanner, DefaultDelegate
 
+# Simple BLE scanner to test stuff, similar to how the Scan Thread works on SHELL/API
+
 class ScanDelegate(DefaultDelegate):
     def __init__(self):
         DefaultDelegate.__init__(self)

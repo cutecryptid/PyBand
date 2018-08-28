@@ -243,26 +243,14 @@ class AbstractMiBand(Peripheral):
         self.setTime(MiBandTime(self, now.year, now.month, now.day, now.hour, now.minute, sec=now.second))
 
     # Changes time display to time or datetime (not tested on MB3)
+    # Probably has a different behavior in MB3, switching the main display
     def setDisplayTimeFormat(self, format):
-        if format == "date":
-            print "Enabling Date Format..."
-            self.char_config.write(b'\x06\x0a\x00\x03')
-        elif format == "time":
-            print "Enabling Time Format..."
-            self.char_config.write(b'\x06\x0a\x00\x00')
-        else:
-            print "Only 'date' and 'time' formats supported"
+        pass
 
     # Changes time display to 12h or 24h format (not tested on MB3)
+    # Probably doesn't work on MB3 as it only displays 24h format
     def setDisplayTimeHours(self, format):
-        if format == 12:
-            print "Enabling 12 hours Format..."
-            self.char_config.write(b'\x06\x02\x00\x00')
-        elif format == 24:
-            print "Enabling 24 hours Format..."
-            self.char_config.write(b'\x06\x02\x00\x01')
-        else:
-            print "Only 12 and 24 formats supported"
+        pass
 
     def getLastSyncDate(self):
         return self.lastSyncDate
@@ -272,21 +260,26 @@ class AbstractMiBand(Peripheral):
         self.lastSyncDate = dtm
 
     # Multiple functions to fetch activity fron the MiBand, implemented as a state machine
+    # State is initialized here, but is changed on the appropiate Delegate Class
     def fetch_activity_data(self):
         self.fetch_state = "FETCH"
 
+        # Loop Fetch until finished
         while self.fetch_state == "FETCH":
             self.start_fetching()
             if self.fetch_state == "SUCCESS":
                 self.fetch_state = "FETCH"
 
+        # If finished, we're good, if not, abort
         if self.fetch_state == "FINISHED":
             print "Finished Successfully!"
         else:
             print "Finished but something went wrong, not storing data"
 
+        # Return to FETCH state for the next time we fetch
         self.fetch_state = "FETCH"
 
+    # Tells the device we are ready to listen for the incoming ActivityDataFrames
     def start_fetching(self):
         syncDate = self.lastSyncDate
 
@@ -300,6 +293,7 @@ class AbstractMiBand(Peripheral):
             while self.fetch_state != "SUCCESS" and self.fetch_state != "TERMINATED" and self.fetch_state != "FINISHED":
                 self.waitForNotifications(self.timeout)
 
+    # Write a CSV file with the data stored on the ActivityBuffer and flush it (Should this go here or on SHELL/API????)
     def store_activity_data_file(self, base_route):
         print("Storing {0} activity data frames".format(len(self.activityDataBuffer)))
         csv_file = open(base_route + self.addr.replace(':','')+'_'+str(self.activityDataBuffer[0].dtm).replace(':','_')+'-'+str(self.activityDataBuffer[-1].dtm).replace(':','_')+'.csv'.replace(' ', ''), "w")
@@ -323,6 +317,7 @@ class AbstractMiBand(Peripheral):
         while True:
             self.waitForNotifications(self.timeout)
 
+    # Some simple events we have identified
     def onEvent(self, data):
         if data == 1:
             print "Fell Asleep"
@@ -331,6 +326,8 @@ class AbstractMiBand(Peripheral):
         elif data == 4:
             print "Button Pressed"
 
+    # Alarms work as a queue, we can't read them, so they have to be stored locally
+    # Watch out for inconsistencies when using multiple clients (Shell/API)
     def queueAlarm(self, hour, minute, repetitionMask=128, enableAlarm=True):
         if len(self.alarms) >= 5:
             print "Can't store more than 5 alarms at a time."
@@ -345,6 +342,7 @@ class AbstractMiBand(Peripheral):
             self.waitForNotifications(self.timeout)
             return index
 
+    # Modify alarm
     def setAlarm(self, index, hour, minute, repetitionMask, enableAlarm):
         if index >= len(self.alarms):
             print "Alarm doesn't exist."
@@ -360,6 +358,7 @@ class AbstractMiBand(Peripheral):
             self.waitForNotifications(self.timeout)
             return True
 
+    # Change alarm between ON/OFF state
     def toggleAlarm(self, index):
         alarm = self.alarms[index]
 
@@ -369,6 +368,7 @@ class AbstractMiBand(Peripheral):
         self.char_config.write(alarm.getMessage(index))
         self.waitForNotifications(self.timeout)
 
+    # Change a weekday on which the alarm repeats between ON/OFF (0 = Monday)
     def toggleAlarmDay(self, index, day):
         alarm = self.alarms[index]
 
@@ -389,7 +389,7 @@ class AbstractMiBand(Peripheral):
         self.waitForNotifications(self.timeout)
 
     def deleteAlarm(self, index):
-        # Tricky, move all alarms one position beginning at the deleted one
+        # Tricky, move all alarms one position, starting at the deleted one,
         # and delete the last one
 
         alarm = self.alarms[index]
@@ -415,6 +415,11 @@ class AbstractMiBand(Peripheral):
             self.waitForNotifications(self.timeout)
         self.alarms = []
 
+
+    # Sets user info for data interpretation, alias is just a code, not relevant
+    # Pairing and device-identification is done by auto-generated auth keys
+    # If the stored key changes, official MiFit app will delete user data
+    # Watch out for changes like these
     def setUserInfo(self, alias, sex, height, weight, birth_date):
         print("Attempting to set user info...")
         userid = string_hashcode(alias)
@@ -472,27 +477,12 @@ class AbstractMiBand(Peripheral):
         self.char_user_settings.write(goal_msg)
         self.waitForNotifications(self.timeout)
 
+    # This is pretty different between MB2 and MB3, so it's left out for each class
+    # to implement it. Currently only implemented in MB2
+    # Probable we will need to change method's signature to take a BOOL ARRAY
+    # because display items are very different bewteen MB2 and MB3
     def setDisplayItems(self, steps=False, distance=False, calories=False, heartrate=False, battery=False):
-        print ("Setting display items to [{0}{1}{2}{3}{4}]...".format(
-            " STP" if steps else "", " DST" if distance else "", " CAL" if calories else "",
-            " HRT" if heartrate else "", " BAT" if battery else ""))
-
-        screen_change_byte = 1
-        command_change_screens = [0x0a, 0x01, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05]
-        if steps:
-            command_change_screens[screen_change_byte] |= 0x02
-        if distance:
-            command_change_screens[screen_change_byte] |= 0x04
-        if calories:
-            command_change_screens[screen_change_byte] |= 0x08
-        if heartrate:
-            command_change_screens[screen_change_byte] |= 0x10
-        if battery:
-            command_change_screens[screen_change_byte] |= 0x20
-
-        msg_command = array.array('B', command_change_screens).tostring()
-        self.char_config.write(msg_command)
-        self.waitForNotifications(self.timeout)
+        pass
 
     def setDoNotDisturb(self, mode, start=None, end=None, enableLift=True):
         dnd_msg = [0x09]

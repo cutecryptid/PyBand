@@ -98,6 +98,10 @@ def save_local(cmd):
     with open(base_route + '/localdata/devices_keys.json', 'wb') as outfile:
         json.dump(cmd.devices_keys, outfile)
 
+# Scanning process that checks for new devices and calculates reputation based on different parameters
+# Note that a far away device won't disappear from the scanner devices list but will keep it's data static
+# We check for nearby-ness and stilness of devices to recalculate reputation
+# With very few reputation, device gets deleted, with enough reputation, activity gets fetched automatically
 def scan_miband2(scanner,strikes,thresh):
     print("Scanning!")
     scanner.clear()
@@ -116,6 +120,7 @@ def scan_miband2(scanner,strikes,thresh):
     print("Stopped scanning...")
     scanner.stop()
 
+# Ping thread to check if devices are still alive, this doesn't work well (causes interferences)
 def ping_connected(sleeptime):
     print("Pinging connected devices...")
     t = threading.currentThread()

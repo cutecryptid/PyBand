@@ -1,6 +1,10 @@
 import datetime
 import pyodbc
 
+# Module to connect to a SQL Server DB and interact with it from the MBServer (Shell/API)
+# MySQL implementation is pending and should be done on another file
+# Most of the methods will be very similar, but take care
+
 def get_device_last_sync(cnxn_string, address):
     connection = pyodbc.connect(cnxn_string, timeout=3)
     cursor = connection.cursor()
