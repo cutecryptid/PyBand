@@ -5,6 +5,7 @@ import re
 import os
 import binascii
 import datetime
+import array
 from Crypto.Cipher import AES
 from bluepy.btle import Service, Characteristic, Descriptor, Peripheral, ADDR_TYPE_RANDOM
 from mibandtime import MiBandTime
@@ -202,6 +203,9 @@ class AbstractMiBand(Peripheral):
         for i in range(30):
             self.waitForNotifications(self.timeout)
 
+    # Disabled: Interval set to 0, Sleep set to 0
+    # Enabled:  Interval set to not 0, Sleep set to 0
+    # Sleep Only: Interval set to not 0, Sleep set to 1
     def monitorHeartRateSleep(self, enable):
         if enable:
             print("Enabling Sleep HR Measurement...")
@@ -247,10 +251,16 @@ class AbstractMiBand(Peripheral):
     def setDisplayTimeFormat(self, format):
         pass
 
-    # Changes time display to 12h or 24h format (not tested on MB3)
-    # Probably doesn't work on MB3 as it only displays 24h format
+    # Changes time display to 12h or 24h format
     def setDisplayTimeHours(self, format):
-        pass
+        if format == 12:
+            print "Enabling 12 hours Format..."
+            self.char_config.write(b'\x06\x02\x00\x00')
+        elif format == 24:
+            print "Enabling 24 hours Format..."
+            self.char_config.write(b'\x06\x02\x00\x01')
+        else:
+            print "Only 12 and 24 formats supported"
 
     def getLastSyncDate(self):
         return self.lastSyncDate
@@ -581,6 +591,10 @@ class AbstractMiBand(Peripheral):
             self.char_config.write(b'\x06\x06\x00\x00')
         self.waitForNotifications(self.timeout)
 
+    # Very dangerous, auth not required, just connection
+    # Will reset everything to factory, DELETE data AND CHANGE DEVICE'S MAC
+    # DO NOT USE LIGHTLY
+    # ALEX MUCHO CUIDAO QUE LA LIAS
     def factoryReset(self, force=False):
         if not force:
             print ("Factory resetting will wipe everything and change the device's MAC, use 'force' parameter if you know what you are doing")
@@ -590,6 +604,7 @@ class AbstractMiBand(Peripheral):
             self.waitForNotifications(self.timeout)
             self.disconnect()
 
+    # NO IDEA OF WHAT THIS DOES TO THE MIBAND LOL
     def reboot(self):
         self.char_firmware.write(b'\x05')
         self.waitForNotifications(self.timeout)

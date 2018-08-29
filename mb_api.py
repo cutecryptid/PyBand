@@ -379,7 +379,7 @@ def devices():
                 connected_devices[addr] = mb
                 save_keys(devices_keys)
                 mb.cleanAlarms()
-                dev_id = mbdb.register_device(cnxn_string, mb.addr, mb.model)
+                dev_id = mbdb.register_device(cnxn_string, mb.addr, mb.get_model())
                 mbdb.delete_all_alarms(cnxn_string, dev_id)
                 mbdb.update_battery(cnxn_string, mb.addr, mb.battery_info['level'])
                 # Device stays connected after initialize, but we don't want that
@@ -504,7 +504,7 @@ def device(dev_id):
                         mbdb.delete_all_alarms(cnxn_string, dev_id)
                         del devices_keys[row.mac.upper()]
                         print("MiBand unregistered!")
-                        save_keys()
+                        save_keys(devices_keys)
                         return json.dumps({"registered": False, "dev_id": row.dispositivoId}), 200
                     except BTLEException as e:
                         print("There was a problem unregistering this MiBand, try again later")

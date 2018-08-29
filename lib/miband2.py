@@ -64,13 +64,4 @@ class MiBand2(AbstractMiBand):
         else:
             print "Only 'date' and 'time' formats supported"
 
-    # Changes time display to 12h or 24h format
-    def setDisplayTimeHours(self, format):
-        if format == 12:
-            print "Enabling 12 hours Format..."
-            self.char_config.write(b'\x06\x02\x00\x00')
-        elif format == 24:
-            print "Enabling 24 hours Format..."
-            self.char_config.write(b'\x06\x02\x00\x01')
-        else:
-            print "Only 12 and 24 formats supported"
+    

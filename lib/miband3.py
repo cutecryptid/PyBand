@@ -35,27 +35,6 @@ class MiBand3(AbstractMiBand):
         print "UNINMPLEMENTED FOR MB3"
         pass
 
-    # Changes time display to time or datetime (not tested on MB3)
-    # Probably changes main display, try adjusting bytes on command
-    # If it doesn't work, log MB3 commands and reimplement
     def setDisplayTimeFormat(self, format):
-        if format == "date":
-            print "Enabling Date Format..."
-            self.char_config.write(b'\x06\x0a\x00\x03')
-        elif format == "time":
-            print "Enabling Time Format..."
-            self.char_config.write(b'\x06\x0a\x00\x00')
-        else:
-            print "Only 'date' and 'time' formats supported"
-
-    # Changes time display to 12h or 24h format (not tested on MB3)
-    # Probably not working, test
-    def setDisplayTimeHours(self, format):
-        if format == 12:
-            print "Enabling 12 hours Format..."
-            self.char_config.write(b'\x06\x02\x00\x00')
-        elif format == 24:
-            print "Enabling 24 hours Format..."
-            self.char_config.write(b'\x06\x02\x00\x01')
-        else:
-            print "Only 12 and 24 formats supported"
+        print "CAN'T CHANGE TIME FORMAT ON MB3"
+        pass
