@@ -1,5 +1,6 @@
 #!/usr/bin/env python2
 import json
+import array
 from abstract_miband import AbstractMiBand
 from miband2delegate import MiBand2Delegate
 import mibandconstants as mbc
@@ -63,5 +64,3 @@ class MiBand2(AbstractMiBand):
             self.char_config.write(b'\x06\x0a\x00\x00')
         else:
             print "Only 'date' and 'time' formats supported"
-
-    

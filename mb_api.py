@@ -103,7 +103,7 @@ class MiBandScanDelegate(DefaultDelegate):
 
     def handleDiscovery(self, dev, isNewDev, isNewData):
         try:
-            name = dev.getValueText(9)
+            name = dev.getValue(9)
             serv = dev.getValueText(2)
             if serv == '0000fee0-0000-1000-8000-00805f9b34fb' and dev.addr and dev.rssi > self.threshold:
                 if dev.addr.upper() not in tmp_mibands.keys():

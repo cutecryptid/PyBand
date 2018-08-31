@@ -64,14 +64,15 @@ class MiBandScanDelegate(DefaultDelegate):
 
     def handleDiscovery(self, dev, isNewDev, isNewData):
         try:
-            name = dev.getValueText(9)
+            name = dev.getValue(9)
             serv = dev.getValueText(2)
             if serv == '0000fee0-0000-1000-8000-00805f9b34fb' and dev.addr and dev.rssi >= self.thresh:
                 if name == 'MI Band 2':
                     self.tmp_devices[dev.addr] = {"device": dev, "name": name, "model": "mb2", "strikes": 0}
                 elif name == 'Mi Band 3':
                     self.tmp_devices[dev.addr] = {"device": dev, "name": name, "model": "mb3", "strikes": 0}
-        except:
+        except Exception as e:
+            print e
             print "ERROR"
 
 
@@ -504,7 +505,6 @@ class MiBandCMD(cmd.Cmd):
                     try:
                         addr = self.mibands.keys()[dev_id]
                         model = self.models[addr]
-                        self.scd.tmp_devices[addr]["strikes"] = -9999
                         if not addr in self.devices_keys.keys():
                             self.devices_keys[addr] = random_key()
                         if model.upper() == "MB2":
@@ -575,7 +575,6 @@ class MiBandCMD(cmd.Cmd):
             try:
                 addr = self.mibands.keys()[dev_id]
                 model = self.models[addr]
-                self.scd.tmp_devices[addr]["strikes"] = -9999
                 if not addr in self.devices_keys.keys():
                     self.devices_keys[addr] = random_key()
                 if model.upper() == "MB2":
@@ -594,6 +593,9 @@ class MiBandCMD(cmd.Cmd):
                 mb.disconnect()
             except BTLEException as e:
                 print("There was a problem registering this MiBand, try again later")
+                print e
+            except KeyError as e:
+                print("Device was kicked out")
                 print e
 
     def do_unregister(self, params):
