@@ -8,7 +8,7 @@ You also need a Bluetooth 4.0 capable dongle or similar in order to use the libr
 To install the requires libraries run
 ```
 pip install Crypto
-pip install bluepy
+pip install bluepy==1.1.4
 ```
 
 Optionally, to store the data on a DB, the library used in the MiBand2DB module is pyodbc, you can install it through pip
@@ -31,6 +31,8 @@ Please note that while the library is easily installed with the previous command
 # Usage
 All of the scripts have to be ran as superuser since the commands the BluePy library relies on to switch the working mode of your BLE device require those privileges.
 
-You can include the library from anywhere in your project with a relative import. Sample uses containing all the functionality can be found on the ```mb2api.py``` and ```mb2shell.py``` files. Please note that these scripts won't work out of the box because they are intended to work with our project's local SQL Server Database. And should be modified accordingly and used as reference. There is also ```mb2daemon.py```, that is an attempt to make a an automated synchronization server that works with local files.
+You can include the library from anywhere in your project with a relative import. Sample uses containing all the functionality can be found on the ```mb2api.py``` and ```mb2shell.py``` files.
 
 The Shell has a parameter to specifiy the storage mode, "db" will try to stablish a connection with the configured relational database, while "json" will work in standalone mode.
+
+To run the library as an automated server, you have to modify the ```miband_server.service``` file to point ```WorkingDirectory=``` to this project's root folder on your system, and edit ```ExecStart=/path/to/project/root/mb_api.py``` accordingly.
