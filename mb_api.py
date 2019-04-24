@@ -51,7 +51,7 @@ VERSION_STRING = "0.20"
 
 DEFAULT_KEY = b'\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39\x40\x41\x42\x43\x44\x45'
 
-max_connections = 5
+max_connections = 2
 q = SetQueue()
 # For automated download stablish a period in which we don't download data
 # activity_fetch_cooldown = 6 * 60
