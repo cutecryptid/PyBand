@@ -26,13 +26,13 @@ from miband3 import MiBand3
 import mibanddb as mbdb
 
 ENV_CONFIG="development"
-CONFIG_MODE="GERIATIC"
+CONFIG_MODE="MB2"
 
 config_route = base_route + "/configuration"
 env_route = config_route + "/" + ENV_CONFIG
 
 q = Queue.Queue()
-max_connections = 5
+max_connections = 2
 # For automated download stablish a period in which we don't download data
 # activity_fetch_cooldown = 6 * 60
 connected_devices = {}
