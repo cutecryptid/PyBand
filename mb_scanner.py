@@ -14,7 +14,7 @@ from miband2 import MiBand2
 from miband3 import MiBand3
 from mibandalarm import MiBandAlarm
 
-max_connections = 5
+max_connections = 2
 connected_devices = {}
 
 # Scanner script that tests the working of the scanner with reputation system for the API
