@@ -46,7 +46,7 @@ parser.add_argument('-e', '--env', default='development',
 args = parser.parse_args()
 
 ENV_CONFIG = args.env
-CONFIG_MODE="GERIATIC"
+CONFIG_MODE="MB2"
 VERSION_STRING = "0.20"
 
 DEFAULT_KEY = b'\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39\x40\x41\x42\x43\x44\x45'
