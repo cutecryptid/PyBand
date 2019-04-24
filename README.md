@@ -1,5 +1,5 @@
-# PyBand 2
-Python library to interact with the Xiaomi MiBand 2
+# PyBand
+Python library to interact with the Xiaomi MiBand 2 and MiBand3
 
 # Requirements
 This library can only run in LINUX environments since it uses the BluePy library.
@@ -36,3 +36,5 @@ You can include the library from anywhere in your project with a relative import
 The Shell has a parameter to specifiy the storage mode, "db" will try to stablish a connection with the configured relational database, while "json" will work in standalone mode.
 
 To run the library as an automated server, you have to modify the ```miband_server.service``` file to point ```WorkingDirectory=``` to this project's root folder on your system, and edit ```ExecStart=/path/to/project/root/mb_api.py``` accordingly.
+
+Unlike the Shell script, the API script and Sync Server will only work in DB mode (SQL Server) and not in local JSON mode. This is still a WIP.
