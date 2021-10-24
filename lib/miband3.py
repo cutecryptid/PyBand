@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 import json
 from abstract_miband import AbstractMiBand
 from miband3delegate import MiBand3Delegate
@@ -32,9 +32,9 @@ class MiBand3(AbstractMiBand):
         return MiBand3Delegate(self)
 
     def setDisplayItems(self, steps=False, distance=False, calories=False, heartrate=False, battery=False):
-        print "UNINMPLEMENTED FOR MB3"
+        print("UNINMPLEMENTED FOR MB3")
         pass
 
     def setDisplayTimeFormat(self, format):
-        print "CAN'T CHANGE TIME FORMAT ON MB3"
+        print("CAN'T CHANGE TIME FORMAT ON MB3")
         pass
