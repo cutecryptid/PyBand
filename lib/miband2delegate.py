@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import binascii
 import struct
 from bluepy.btle import DefaultDelegate
@@ -57,7 +59,7 @@ class MiBand2Delegate(DefaultDelegate):
 
         elif hasattr(self.device, 'char_battery') and hnd == self.device.char_battery.getHandle():
             if data[:3] == b'\x10\x17\x01':
-                print "Success reading Battery Level"
+                print("Success reading Battery Level")
             else:
                 print("Unhandled Battery Response " + hex(hnd) + ": " + str(binascii.hexlify(data)))
 
@@ -96,7 +98,7 @@ class MiBand2Delegate(DefaultDelegate):
                 self.sessionBytes = 0
                 if (self.fetchDate.minutesUntilNow() > 0):
                     if (self.fetchCount >= 5):
-                        print ("Fetched {0} rounds, not fetching any more now".format(self.fetchCount))
+                        print("Fetched {0} rounds, not fetching any more now".format(self.fetchCount))
                         self.fetchCount = 0
                         self.sessionBytes = 0
                         self.totalBytes = 0
@@ -124,15 +126,15 @@ class MiBand2Delegate(DefaultDelegate):
 
         elif hasattr(self.device, 'char_config') and hnd == self.device.char_config.getHandle():
             if data[:3] == b'\x10\x02\x04':
-                print "ERROR Configuring"
+                print("ERROR Configuring")
             if data[:3] == b'\x10\x62\x05':
-                print "ERROR Configuring, too many parameters"
+                print("ERROR Configuring, too many parameters")
             elif data[:3] == b'\x10\x02\x01':
-                print "SUCCESS Configuring Alarm Endpoint"
+                print("SUCCESS Configuring Alarm Endpoint")
             elif data[:3] == b'\x10\x0a\x01':
-                print "SUCCESS Configuring Display Endpoint"
+                print("SUCCESS Configuring Display Endpoint")
             elif data[0] == b'\x10' and data[-1] == b'\x01':
-                print "SUCCESS Configuring %s Endpoint" % str(binascii.hexlify(data[1:-1]))
+                print("SUCCESS Configuring %s Endpoint" % str(binascii.hexlify(data[1:-1])))
             else:
                 print("Unhandled Configuration Response " + hex(hnd) + ": " + str(binascii.hexlify(data)))
 
