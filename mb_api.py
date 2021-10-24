@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 from flask import Flask, g, request, flash, url_for, redirect, render_template, abort, jsonify
 import os
@@ -19,8 +19,8 @@ import string
 import pyodbc
 import datetime
 import argparse
-import Queue
-import ConfigParser
+from queue import Queue, Empty
+import configparser
 from flask import Flask
 base_route = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(base_route + '/lib')
@@ -29,7 +29,7 @@ from miband3 import MiBand3
 from mibandalarm import MiBandAlarm
 import mibanddb as mbdb
 
-class SetQueue(Queue.Queue):
+class SetQueue(Queue):
     def _init(self, maxsize):
         self.queue = set()
     def _put(self, item):
@@ -66,20 +66,20 @@ model = {}
 config_route = base_route + "/configuration"
 env_route = config_route + "/" + ENV_CONFIG
 
-config_presets = ConfigParser.ConfigParser()
-config_presets.readfp(open(config_route + '/mb_presets.conf'))
+config = configparser.ConfigParser()
+config.read_file(open(config_route + '/mb_presets.conf'))
 devices_keys = None
 
 try:
-    env = ConfigParser.ConfigParser()
-    env.readfp(open(env_route + '/server.conf'))
+    env = configparser.ConfigParser()
+    env.read_file(open(env_route + '/server.conf'))
     rssithreshold = int(env.get('SERVER', "range_threshold"))
     autofetch = int(env.get('SERVER', "autofetch"))
     autofetch_cooldown = int(env.get('SERVER', "autofetch_cooldown"))*60*60  # hours in seconds
     require_token = int(env.get('SERVER', "require_token"))
 except Exception as e:
-    print e
-    print "unrecognised config mode [%s]" % ENV_CONFIG
+    print(e)
+    print("unrecognised config mode [%s]" % ENV_CONFIG)
     sys.exit(-1)
 
 cnxn = {"server": env.get('DATABASE', "server"), "database": env.get('DATABASE', "database"),
@@ -92,7 +92,7 @@ cnxn_string = ('DRIVER={ODBC Driver 17 for SQL Server};Server='+cnxn["server"]+
 try:
     pyodbc.connect(cnxn_string, timeout=3)
 except pyodbc.OperationalError as e:
-    print str(e[1])
+    print(str(e[1]))
     sys.exit(-1)
 
 
@@ -114,7 +114,7 @@ class MiBandScanDelegate(DefaultDelegate):
                     elif name == 'Mi Band 3':
                         model[dev.addr.upper()] = "mb3"
         except:
-            print "ERROR"
+            print("ERROR")
 
 def random_key(length=16):
     return ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(length))
@@ -232,7 +232,7 @@ def ping_connected(sleeptime):
             try:
                 connected_devices[d.upper()].char_battery.read()
             except Exception as e:
-                print e
+                print(e)
                 if d in connected_devices.keys():
                     connected_devices[d.upper()].force_disconnect()
                     del connected_devices[d.upper()]
@@ -246,7 +246,7 @@ def worker():
         q.task_done()
 
 def do_fetch_activity(item, silent_fetch):
-    print "Fetching MiBand [%s] activity!" % item
+    print("Fetching MiBand [%s] activity!" % item)
     disconnect_after = False
     if item not in connected_devices.keys():
         try:
@@ -262,7 +262,7 @@ def do_fetch_activity(item, silent_fetch):
             connected_devices[item] = mb
         except BTLEException as e:
             print("There was a problem connecting this MiBand, try again later")
-            print e
+            print(e)
             if item in connected_devices.keys():
                 connected_devices[item].force_disconnect()
                 del connected_devices[item]
@@ -277,15 +277,15 @@ def do_fetch_activity(item, silent_fetch):
             if not silent_fetch:
                 connected_devices[item].send_alert(b'\x03')
             if len(connected_devices[item].getActivityDataBuffer()) > 0:
-                print "Saving Data to DB..."
+                print("Saving Data to DB...")
                 mbdb.write_activity_data(cnxn_string, connected_devices[item])
-            print "Finished fetching MiBand [%s] activity!" % item
+            print("Finished fetching MiBand [%s] activity!" % item)
             if disconnect_after:
                 connected_devices[item].disconnect()
                 del connected_devices[item]
         except BTLEException as e:
             print("There was a problem retrieving this MiBand's activity, try again later")
-            print e
+            print(e)
             if item in connected_devices.keys():
                 connected_devices[item].force_disconnect()
                 del connected_devices[item]
@@ -389,14 +389,14 @@ def devices():
                 return json.dumps({"dev_id": dev_id, "registered": True})
             except BTLEException as e:
                 print("There was a problem registering this MiBand, try again later")
-                print e
+                print(e)
                 if addr in connected_devices.keys():
                     connected_devices[addr].force_disconnect()
                     del connected_devices[addr]
                 abort(500)
             except BTLEException.DISCONNECTED as d:
                 print("Device disconnected, removing from connected devices")
-                print e
+                print(e)
                 if addr in connected_devices.keys():
                     connected_devices[addr].force_disconnect()
                     del connected_devices[addr]
@@ -443,7 +443,7 @@ def device(dev_id):
                     except BTLEException as e:
                         reputation[row.mac.upper()] = 50
                         print("There was a problem (dis)connecting to this MiBand, try again later")
-                        print e
+                        print(e)
                         abort(500)
                     except BTLEException.DISCONNECTED as d:
                         reputation[row.mac.upper()] = 50
@@ -458,11 +458,11 @@ def device(dev_id):
                         mb.force_disconnect()
                         del connected_devices[row.mac]
                         del mb
-                        print ("MiBand disconnected!")
+                        print("MiBand disconnected!")
                         return json.dumps({"connected": False, "dev_id": row.dispositivoId}), 200
                     except BTLEException as e:
                         print("There was a problem disconnecting this MiBand, try again later")
-                        print e
+                        print(e)
                         abort(500)
                     except BTLEException.DISCONNECTED as d:
                         print("Device disconnected, removing from connected devices")
@@ -471,7 +471,7 @@ def device(dev_id):
                         abort(500)
                 elif action == "alert" and row.mac in connected_devices.keys():
                     try:
-                        print ("Alerting MB2 " + row.mac)
+                        print("Alerting MB2 " + row.mac)
                         mb = connected_devices[row.mac]
                         if request.args.get('notification') == "message":
                             mb.send_alert(b'\x01')
@@ -487,7 +487,7 @@ def device(dev_id):
                     except BTLEException as e:
                         print("There was a problem alerting this MiBand, try again later")
                         del connected_devices[row.mac]
-                        print e
+                        print(e)
                         abort(500)
                     except BTLEException.DISCONNECTED as d:
                         print("Device disconnected, removing from connected devices")
@@ -508,7 +508,7 @@ def device(dev_id):
                         return json.dumps({"registered": False, "dev_id": row.dispositivoId}), 200
                     except BTLEException as e:
                         print("There was a problem unregistering this MiBand, try again later")
-                        print e
+                        print(e)
                         abort(500)
                     except BTLEException.DISCONNECTED as d:
                         print("Device disconnected, removing from connected devices")
@@ -552,7 +552,7 @@ def alarms(dev_id):
                     return json.dumps({"alarms_deleted": True, "dev_id": row.dispositivoId}), 200
             except BTLEException as e:
                 print("There was a problem handling the alarms, try again later")
-                print e
+                print(e)
                 abort(500)
             except BTLEException.DISCONNECTED as d:
                 print("Device disconnected, removing from connected devices")
@@ -598,7 +598,7 @@ def alarm(dev_id, alarm_index):
                         return json.dumps({"alarm_deleted": True, "dev_id": row.dispositivoId}), 200
                 except BTLEException as e:
                     print("There was a problem handling the alarm, try again later")
-                    print e
+                    print(e)
                     abort(500)
                 except BTLEException.DISCONNECTED as d:
                     print("Device disconnected, removing from connected devices")
@@ -664,7 +664,7 @@ def config(dev_id):
                     return json.dumps({"rebooted": True, "dev_id": dev_id}), 200
             except BTLEException as e:
                 print("There was a problem configuring this MiBand, try again later")
-                print e
+                print(e)
                 abort(500)
             except BTLEException.DISCONNECTED as d:
                 print("Device disconnected, removing from connected devices")
@@ -686,7 +686,7 @@ def activity(dev_id):
                 q.join()
         except BTLEException as e:
             print("There was a problem fetching activity of this MiBand, try again later")
-            print e
+            print(e)
             abort(500)
         except BTLEException.DISCONNECTED as d:
             print("Device disconnected, removing from connected devices")
@@ -759,7 +759,7 @@ def device_user(dev_id):
                         abort(403)
             except BTLEException as e:
                 print("There was a problem handling the user of this MiBand, try again later")
-                print e
+                print(e)
                 abort(500)
             except BTLEException.DISCONNECTED as d:
                 print("Device disconnected, removing from connected devices")
