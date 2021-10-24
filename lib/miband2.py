@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 import json
 import array
 from abstract_miband import AbstractMiBand
@@ -33,7 +33,7 @@ class MiBand2(AbstractMiBand):
         return MiBand2Delegate(self)
 
     def setDisplayItems(self, steps=False, distance=False, calories=False, heartrate=False, battery=False):
-        print ("Setting display items to [{0}{1}{2}{3}{4}]...".format(
+        print("Setting display items to [{0}{1}{2}{3}{4}]...".format(
             " STP" if steps else "", " DST" if distance else "", " CAL" if calories else "",
             " HRT" if heartrate else "", " BAT" if battery else ""))
 
@@ -57,10 +57,10 @@ class MiBand2(AbstractMiBand):
     # Changes time display to time or datetime
     def setDisplayTimeFormat(self, format):
         if format == "date":
-            print "Enabling Date Format..."
+            print("Enabling Date Format...")
             self.char_config.write(b'\x06\x0a\x00\x03')
         elif format == "time":
-            print "Enabling Time Format..."
+            print("Enabling Time Format...")
             self.char_config.write(b'\x06\x0a\x00\x00')
         else:
-            print "Only 'date' and 'time' formats supported"
+            print("Only 'date' and 'time' formats supported")
