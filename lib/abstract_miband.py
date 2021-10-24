@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 import struct
 import json
 import re
@@ -217,7 +217,7 @@ class AbstractMiBand(Peripheral):
         self.waitForNotifications(self.timeout)
 
     def setMonitorHeartRateInterval(self, interval):
-        print "Setting heart rate measurement interval to %s minutes" % interval
+        print("Setting heart rate measurement interval to %s minutes" % interval)
         self.char_hrm_ctrl.write(b'\x14' + struct.pack('B', interval), True)
 
     def req_battery(self):
@@ -254,13 +254,13 @@ class AbstractMiBand(Peripheral):
     # Changes time display to 12h or 24h format
     def setDisplayTimeHours(self, format):
         if format == 12:
-            print "Enabling 12 hours Format..."
+            print("Enabling 12 hours Format...")
             self.char_config.write(b'\x06\x02\x00\x00')
         elif format == 24:
-            print "Enabling 24 hours Format..."
+            print("Enabling 24 hours Format...")
             self.char_config.write(b'\x06\x02\x00\x01')
         else:
-            print "Only 12 and 24 formats supported"
+            print("Only 12 and 24 formats supported")
 
     def getLastSyncDate(self):
         return self.lastSyncDate
@@ -282,9 +282,9 @@ class AbstractMiBand(Peripheral):
 
         # If finished, we're good, if not, abort
         if self.fetch_state == "FINISHED":
-            print "Finished Successfully!"
+            print("Finished Successfully!")
         else:
-            print "Finished but something went wrong, not storing data"
+            print("Finished but something went wrong, not storing data")
 
         # Return to FETCH state for the next time we fetch
         self.fetch_state = "FETCH"
@@ -323,31 +323,31 @@ class AbstractMiBand(Peripheral):
         self.char_alert.write(code)
 
     def event_listen(self):
-        print ("Listening for any event")
+        print("Listening for any event")
         while True:
             self.waitForNotifications(self.timeout)
 
     # Some simple events we have identified
     def onEvent(self, data):
         if data == 1:
-            print "Fell Asleep"
+            print("Fell Asleep")
         elif data == 2:
-            print "Woke Up"
+            print("Woke Up")
         elif data == 4:
-            print "Button Pressed"
+            print("Button Pressed")
 
     # Alarms work as a queue, we can't read them, so they have to be stored locally
     # Watch out for inconsistencies when using multiple clients (Shell/API)
     def queueAlarm(self, hour, minute, repetitionMask=128, enableAlarm=True):
         if len(self.alarms) >= 5:
-            print "Can't store more than 5 alarms at a time."
+            print("Can't store more than 5 alarms at a time.")
             return -1
         else:
             alarm = MiBandAlarm(hour, minute, enabled=enableAlarm,
                                             repetitionMask=repetitionMask)
             self.alarms.append(alarm)
             index = len(self.alarms)-1
-            print "Writing Alarm {0} at position {1}".format(str(alarm), index)
+            print("Writing Alarm {0} at position {1}".format(str(alarm), index))
             self.char_config.write(alarm.getMessage(index))
             self.waitForNotifications(self.timeout)
             return index
@@ -355,7 +355,7 @@ class AbstractMiBand(Peripheral):
     # Modify alarm
     def setAlarm(self, index, hour, minute, repetitionMask, enableAlarm):
         if index >= len(self.alarms):
-            print "Alarm doesn't exist."
+            print("Alarm doesn't exist.")
             return False
         else:
             if repetitionMask == 0:
@@ -363,7 +363,7 @@ class AbstractMiBand(Peripheral):
             alarm = MiBandAlarm(hour, minute, enabled=enableAlarm,
                                             repetitionMask=repetitionMask)
             self.alarms[index] = alarm
-            print "Writing Alarm {0} at position {1}".format(str(alarm), index)
+            print("Writing Alarm {0} at position {1}".format(str(alarm), index))
             self.char_config.write(alarm.getMessage(index))
             self.waitForNotifications(self.timeout)
             return True
@@ -372,7 +372,7 @@ class AbstractMiBand(Peripheral):
     def toggleAlarm(self, index):
         alarm = self.alarms[index]
 
-        print "{0} Alarm {1}".format("Enabling" if not alarm.enabled else "Disabling", str(alarm))
+        print("{0} Alarm {1}".format("Enabling" if not alarm.enabled else "Disabling", str(alarm)))
         self.alarms[index].toggle()
 
         self.char_config.write(alarm.getMessage(index))
@@ -383,7 +383,7 @@ class AbstractMiBand(Peripheral):
         alarm = self.alarms[index]
 
         self.alarms[index].toggleDay(day)
-        print "Changing Alarm to {0}".format(str(alarm))
+        print("Changing Alarm to {0}".format(str(alarm)))
 
         self.char_config.write(alarm.getMessage(index))
         self.waitForNotifications(self.timeout)
@@ -393,7 +393,7 @@ class AbstractMiBand(Peripheral):
 
         self.alarms[index].hour = hour
         self.alarms[index].minute = minute
-        print "Changing Alarm to {0}".format(str(alarm))
+        print("Changing Alarm to {0}".format(str(alarm)))
 
         self.char_config.write(alarm.getMessage(index))
         self.waitForNotifications(self.timeout)
@@ -404,7 +404,7 @@ class AbstractMiBand(Peripheral):
 
         alarm = self.alarms[index]
 
-        print "Deleting alarm {0}".format(str(alarm))
+        print("Deleting alarm {0}".format(str(alarm)))
         for i in range (index+1, len(self.alarms)):
             alarm = self.alarms[i]
             self.char_config.write(alarm.getMessage(i))
@@ -418,7 +418,7 @@ class AbstractMiBand(Peripheral):
         del self.alarms[index]
 
     def cleanAlarms(self):
-        print "Clearing all alarms from device"
+        print("Clearing all alarms from device")
         for i in range(10):
             alarm = MiBandAlarm(0, 0, enabled=False)
             self.char_config.write(alarm.getMessage(i))
@@ -597,7 +597,7 @@ class AbstractMiBand(Peripheral):
     # ALEX MUCHO CUIDAO QUE LA LIAS
     def factoryReset(self, force=False):
         if not force:
-            print ("Factory resetting will wipe everything and change the device's MAC, use 'force' parameter if you know what you are doing")
+            print("Factory resetting will wipe everything and change the device's MAC, use 'force' parameter if you know what you are doing")
         else:
             print("Resetting Device...")
             self.char_config.write(b'\x06\x0b\x00\x01')
